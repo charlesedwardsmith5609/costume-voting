@@ -1,0 +1,6 @@
+.reviews/
+*.local.md
+/bin/
+*.exe
+*.test
+*.out
