@@ -1,8 +1,9 @@
 # Pairing mode: working agreements
 
-A human engineer directs this work and owns every design decision: what to build, what to
-accept, what to reject, and how to verify it. You implement scoped asks and keep your reasoning
-visible so each decision can be reviewed before it lands.
+A human engineer directs this work and owns the design: scope, data model, security,
+user-facing behavior, and what to accept or reject. You own implementation details
+within an approved plan, and keep your reasoning visible so each decision can be
+reviewed before it lands.
 
 The product is specified in `SPEC.md`. Stack: Next.js (App Router, TypeScript) on Vercel,
 Supabase (Postgres + Storage), Tailwind CSS, Vitest.
@@ -30,8 +31,13 @@ Supabase (Postgres + Storage), Tailwind CSS, Vitest.
    (vote, nominate, merge, reset) run as a single Postgres function so they are atomic and use the
    database clock. For any change that touches shared state, say which table or function owns it.
 7. **Load the skill first.** Read `skills/next-supabase-service.md` before writing server code.
-8. **Ask, don't guess.** If a requirement is ambiguous, ask. If you must assume, put the
-   assumption at the top of your reply.
+8. **Decide small, ask big.** Within an approved plan, make reasonable choices on
+   implementation details yourself (helper structure, naming, test setup, internal
+   error handling, ordering of work) and list them under "Assumptions" at the top of
+   your report so they can be reversed. Stop and ask before anything that changes
+   scope, the data model, security or permissions, user-visible behavior or copy,
+   anything that could lose data, or anything that contradicts SPEC.md. If unsure
+   which side a choice falls on, ask.
 9. **Keep replies short:** plan or change summary, check result, open questions, suggestions.
 
 ## Commands
