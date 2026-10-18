@@ -3,6 +3,8 @@
 --
 -- The nominee-photos bucket and its objects are kept: the migration's bucket insert is
 -- idempotent, and Supabase does not allow deleting storage objects from SQL.
+-- public.test_marker (from test_marker.sql) is deliberately left alone, so it never needs to be
+-- re-run after a teardown.
 
 drop function if exists
   public.voting_is_open,

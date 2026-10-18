@@ -167,6 +167,7 @@ create table nominee_edits (
 - Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `edit_nominee` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
 - Voting is an upsert on `(device_id, category)`. The server checks that the nominee exists, isn't hidden, is in that category (`nominee_categories`), and that `now()` is between `voting_opens_at` and `voting_closes_at`.
 - Nominating, adding to a category, and guest edits check the same time window. Host edits do not.
+- The request start time counts: window checks use the database clock at the start of the request's transaction. A request that started before voting closed is accepted even if it finishes a few milliseconds after, for example while waiting on a row lock.
 - A new or replacement photo must be an uploaded object at `<device>/<uuid>.jpg` (or `host/<uuid>.jpg` for the host) that no nominee or edit has used before. A unique index on `nominees.photo_path` backs this up.
 - Public API returns only nominee id, person name, costume name, categories, and photo URL, never vote data. The only vote data a guest can get is their own device's current pick per category.
 
@@ -214,7 +215,7 @@ Write automated tests where practical (server route tests for voting and timer r
 - Working app deployed to Vercel with a short, memorable URL
 - `README.md` with setup steps: Supabase project, SQL migration, Storage bucket, environment variables (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (the project's `sb_secret_` key), `ADMIN_PASSWORD`), and deploy
 - Printable QR code (PNG and the `/admin/qr` page)
-- A short "party night runbook": how to start, extend, and end voting, and how to show winners
+- A short "party night runbook": how to start, extend, and end voting, and how to show winners. It must say: never run Reset while guests are nominating or voting (it is for testing before the party).
 
 ## Design notes
 

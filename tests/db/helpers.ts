@@ -18,9 +18,16 @@ const url = requireEnv("TEST_SUPABASE_URL");
 const serviceKey = requireEnv("TEST_SUPABASE_SERVICE_ROLE_KEY");
 const anonKey = requireEnv("TEST_SUPABASE_ANON_KEY");
 
+// The project ID is the first label of <id>.supabase.co; for any other host, the whole host.
+function projectId(value: string): string {
+  const host = new URL(value).hostname.toLowerCase();
+  return host.endsWith(".supabase.co") ? host.split(".")[0] : host;
+}
+
 // These tests wipe the database. Refuse to point them at production.
-if (url === process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error("TEST_SUPABASE_URL equals NEXT_PUBLIC_SUPABASE_URL; refusing to run DB tests.");
+const prodUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+if (prodUrl && projectId(url) === projectId(prodUrl)) {
+  throw new Error("TEST_SUPABASE_URL is the same project as NEXT_PUBLIC_SUPABASE_URL; refusing to run DB tests.");
 }
 if (serviceKey === process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("TEST_SUPABASE_SERVICE_ROLE_KEY equals the production key; refusing to run.");
@@ -29,6 +36,18 @@ if (serviceKey === process.env.SUPABASE_SERVICE_ROLE_KEY) {
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 export const admin: SupabaseClient = createClient(url, serviceKey, opts);
 export const anon: SupabaseClient = createClient(url, anonKey, opts);
+
+// Only a project marked by supabase/test_marker.sql may be wiped. Runs when this module loads,
+// before any test file's beforeEach(resetDb).
+{
+  const { data, error } = await admin.from("test_marker").select("id").eq("id", 1).maybeSingle();
+  if (error || !data) {
+    throw new Error(
+      `Test project ${projectId(url)} has no test_marker row (${error?.message ?? "table is empty"}). ` +
+        "Run supabase/test_marker.sql on the test project only; refusing to run DB tests.",
+    );
+  }
+}
 
 export type Status = { status: string; id?: string; edit_id?: number };
 
@@ -129,6 +148,14 @@ export async function votesFor(nomineeId: string, category?: string): Promise<nu
   const { count, error } = await q;
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+// Sets this device's counter for the current window (by the database clock) to `count`, so a
+// limit test needs only one or two more requests instead of crossing a window boundary.
+export async function fillRateLimit(device: string, action: string, count: number): Promise<void> {
+  await rpc("check_rate_limit", { p_device: device, p_action: action, p_max: count });
+  const { error } = await admin.from("rate_limits").update({ count }).eq("device_id", device).eq("action", action);
+  if (error) throw new Error(`fillRateLimit: ${error.message}`);
 }
 
 export async function countRows(table: string): Promise<number> {

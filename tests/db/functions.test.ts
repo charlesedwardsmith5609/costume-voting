@@ -5,6 +5,7 @@ import {
   closeVoting,
   countRows,
   createNominee,
+  fillRateLimit,
   getNominee,
   getSettings,
   newDevice,
@@ -148,22 +149,36 @@ describe("cast_vote", () => {
     expect(await votesFor(n)).toBe(0);
   });
 
-  it("rate limits a device to 60 vote requests per window", { timeout: 60000 }, async () => {
+  it("rate limits a device to 60 vote requests per window", async () => {
     await openVoting();
     const n = await createNominee(newDevice(), "funniest");
     const guest = newDevice();
-    for (let i = 0; i < 60; i++) expect(await vote(guest, "funniest", n)).toBe("ok");
+    await fillRateLimit(guest, "vote", 59);
+    expect(await vote(guest, "funniest", n)).toBe("ok");
     expect(await vote(guest, "funniest", n)).toBe("rate_limited");
     // Other devices are unaffected.
     expect(await vote(newDevice(), "funniest", n)).toBe("ok");
   });
 
-  it("counts rejected requests toward the limit", { timeout: 60000 }, async () => {
-    // Timer never started, so every request is rejected as closed.
+  it("counts rejected requests toward the limit", async () => {
+    // Timer never started, so the 60th request is rejected as closed but still counted.
     const guest = newDevice();
     const fake = newDevice();
-    for (let i = 0; i < 60; i++) expect(await vote(guest, "funniest", fake)).toBe("closed");
+    await fillRateLimit(guest, "vote", 59);
+    expect(await vote(guest, "funniest", fake)).toBe("closed");
     expect(await vote(guest, "funniest", fake)).toBe("rate_limited");
+  });
+
+  it("rejects votes for a nominee merged away or removed from that category", async () => {
+    await openVoting();
+    const keep = await createNominee(newDevice(), ["funniest", "most_unique"]);
+    const drop = await createNominee(newDevice(), "funniest");
+    await rpc("merge_nominees", { p_keep: keep, p_drop: drop });
+    await rpc("admin_set_category", { p_nominee: keep, p_category: "most_unique", p_present: false });
+    const guest = newDevice();
+    expect(await vote(guest, "funniest", drop)).toBe("invalid_nominee");
+    expect(await vote(guest, "most_unique", keep)).toBe("invalid_nominee");
+    expect(await vote(guest, "funniest", keep)).toBe("ok");
   });
 });
 

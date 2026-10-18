@@ -276,10 +276,14 @@ begin
   if not public.voting_is_open() then
     return 'closed';
   end if;
-  if not exists (
-    select 1 from public.nominees n
-      join public.nominee_categories nc on nc.nominee_id = n.id
-     where n.id = p_nominee and nc.category = p_category and not n.hidden
+  -- Share-lock the nominee so a concurrent merge, category removal, or hide finishes first
+  -- (each holds the nominee row lock while it changes categories or votes). Without this, a vote
+  -- committed mid-merge could return 'ok' and then be deleted by the cascade. The category check
+  -- runs as a separate statement so it sees the committed result of whatever we waited for.
+  perform 1 from public.nominees n where n.id = p_nominee and not n.hidden for share;
+  if not found or not exists (
+    select 1 from public.nominee_categories nc
+     where nc.nominee_id = p_nominee and nc.category = p_category
   ) then
     return 'invalid_nominee';
   end if;
@@ -577,6 +581,8 @@ $$;
 
 -- Clears votes, nominees, edits, rate limits, and the timer. Returns every photo path that was
 -- in use or in edit history so the route can delete them from storage.
+-- The table lock makes reset all-or-nothing against concurrent guest writes (they wait, then
+-- run after the reset). Tables are listed in the order guest writes touch them.
 create function public.reset_all()
 returns text[]
 language plpgsql
@@ -585,6 +591,8 @@ as $$
 declare
   v_paths text[];
 begin
+  lock table public.rate_limits, public.settings, public.nominees, public.nominee_categories,
+    public.votes, public.nominee_edits in exclusive mode;
   select coalesce(array_agg(distinct p), '{}') into v_paths from (
     select photo_path as p from public.nominees
     union select old_photo_path from public.nominee_edits
