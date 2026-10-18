@@ -12,7 +12,7 @@ It must be ready and tested on real phones by Friday, October 23.
 2. **Mobile first.** Designed for phones in one hand, in a dim room, on spotty Wi-Fi.
 3. **Votes are private.** Guests never see vote counts, rankings, or who voted for whom. Only the host sees results.
 4. **Automatic tallying** per category, live on the admin page.
-5. **Countdown timer.** The host starts it with a chosen duration. When it hits zero, voting and nominating lock, enforced on the server, not just in the UI.
+5. **Voting window.** The host starts voting with a close time (for example 10:30 PM) or a duration. When it closes, voting, nominating, uploads, and guest edits all lock, enforced on the server, not just in the UI.
 6. **Fast nomination.** Adding a nominee takes under 30 seconds: take or pick a photo, optionally type names, choose one or more categories, submit.
 
 ## Categories
@@ -34,19 +34,27 @@ Fixed list, in this order:
 
 All database writes go through Next.js server routes (or server actions) using the Supabase service role key, which never reaches the browser. The anon key gets no direct table access. Photos live in a public-read Storage bucket with unguessable file names; uploads also go through the server (signed upload URLs are fine).
 
+## Voting window
+
+There is one window for everything, and it can stay open all night. Nominating, editing, photo uploads, and voting are all open from when the host starts voting until it closes; there is no separate nominations phase. Guests can change their vote as often as they like until close (last vote wins). After close, everything locks for guests; the host can still edit nominees. The phases are:
+
+- **Not started:** before the host starts voting. Guests can browse but not nominate, edit, or vote.
+- **Open:** from start until the close time. Extending moves the close time later; ending closes now.
+- **Closed:** after the close time. Guest writes are rejected; host edits still work. Reopening or extending starts a new open phase.
+
 ## Guest experience
 
 ### Home screen
 
 - Party title and a short line: "Vote for your favorite costumes!"
-- Countdown display when the timer is running ("Voting closes in 12:34"), or a "Voting opens soon" state before the host starts it, or "Voting is closed" after.
+- Voting status: "Voting opens soon" before the host starts voting; "Voting open until [time]" (for example "Voting open until 10:30 PM") while open; in the last 15 minutes, a live countdown ("Voting closes in 12:34") with a "Voting closes soon!" banner; "Voting is closed" after. The countdown uses the server's clock, corrected for the phone's clock offset.
 - Four category tabs or cards. Show a checkmark on categories where this device has already voted.
 
 ### Category screen
 
 - Grid of nominee cards: photo (square crop, large) and the nominee's label (see "Nominee labels").
 - Every card has an "Edit" link (see "Edit a nominee").
-- Tap a card to select it, then a clear "Vote" button. Tapping a different nominee and voting again **changes** this device's vote (one vote per device per category, last vote wins until voting closes).
+- Tap a card to select it, then a clear "Vote" button. Tapping a different nominee and voting again **changes** this device's vote (one vote per device per category). Guests can change their vote any number of times until voting closes; the last vote wins.
 - Show "Your vote: [label]" at the top once voted.
 - Prominent "+ Add a nominee" button.
 - Light search or filter by name once a category has more than about 8 nominees.
@@ -91,7 +99,7 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 ## Host (admin) experience
 
 - Route: `/admin`, protected by a password from an environment variable (`ADMIN_PASSWORD`). Use an httpOnly session cookie after login. Every admin API route checks it on the server.
-- **Timer controls:** start with a duration picker (default 30 minutes), extend by 5 or 10 minutes, end now, and reopen.
+- **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future and at most 10 hours ahead.
 - **Live results:** per category, nominees ranked by vote count with photo thumbnails, auto-refreshing every few seconds (or Supabase Realtime). Show total votes per category and number of distinct voting devices.
 - **Winner reveal view:** a full-screen view showing the winner of each category with their photo, one at a time, for announcing on a TV or the host's phone. Handle ties by showing all tied nominees.
 - **Nominee moderation:**
@@ -160,20 +168,22 @@ create table nominee_edits (
 );
 ```
 
-`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, which is the source of truth.
+`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. Later migrations add and change functions. The migrations are the source of truth.
 
 - Enable Row Level Security on all tables with **no policies for the anon role**, so the browser cannot read or write tables directly. All access goes through server routes using the service role.
 - The Supabase projects have "Automatically expose new tables" disabled. The migration grants `service_role` select, insert, update, and delete on every table, usage on the `nominee_edits` sequence, and execute on every function. `anon` and `authenticated` get nothing.
-- Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `edit_nominee` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
+- Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `edit_nominee`, `issue_upload` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
 - Voting is an upsert on `(device_id, category)`. The server checks that the nominee exists, isn't hidden, is in that category (`nominee_categories`), and that `now()` is between `voting_opens_at` and `voting_closes_at`.
-- Nominating, adding to a category, and guest edits check the same time window. Host edits do not.
+- Nominating, adding to a category, guest edits, and upload URLs check the same time window. Host edits do not.
+- `set_timer('start')` takes either a duration (`p_minutes`) or an absolute close time (`p_closes_at`); extend and end take minutes or nothing.
 - The request start time counts: window checks use the database clock at the start of the request's transaction. A request that started before voting closed is accepted even if it finishes a few milliseconds after, for example while waiting on a row lock.
-- A new or replacement photo must be an uploaded object at `<device>/<uuid>.jpg` (or `host/<uuid>.jpg` for the host) that no nominee or edit has used before. A unique index on `nominees.photo_path` backs this up.
+- A new or replacement photo must be an uploaded object that no nominee or edit has used before. A unique index on `nominees.photo_path` backs this up. Guest photos live at `guest/<uuid>.jpg`; the database chooses the path when it issues the upload URL and records the device in `photo_uploads`, and only that device can use it. Host photos live at `host/<uuid>.jpg`. Photo paths and URLs never contain a device ID, because a device ID is enough to read or change that device's votes.
+- Known limitation: a signed upload URL stays valid for 2 hours (fixed by Supabase), so a URL issued just before close can still upload a file after close. That file can never become a nominee or an edit, because nominating and editing check the voting window; it is only an unused file in the bucket, removed by Reset.
 - Public API returns only nominee id, person name, costume name, categories, and photo URL, never vote data. The only vote data a guest can get is their own device's current pick per category.
 
 ## Abuse and safety (keep it light)
 
-- Rate limit per device: at most 10 nominations, 10 edits (edits and "Add to this category" share this counter), and 60 vote requests per 10 minutes.
+- Rate limit per device: at most 10 nominations, 10 edits (edits and "Add to this category" share this counter), 20 photo upload URLs, and 60 vote requests per 10 minutes.
 - Reject uploads that aren't images or are over 5 MB after compression.
 - Host can hide any nominee instantly.
 - No personal data collected beyond what guests type as nominee names.

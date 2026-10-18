@@ -381,12 +381,14 @@ describe("edit_nominee", () => {
     const original = (await getNominee(n)).photo_path;
 
     expect((await edit(guest, n, { photo: await uploadPhoto(newDevice()) })).status).toBe("invalid_photo");
-    expect((await edit(guest, n, { photo: `${guest}/${newDevice()}.jpg` })).status).toBe("invalid_photo");
+    // Well-formed but never issued or uploaded.
+    expect((await edit(guest, n, { photo: `guest/${newDevice()}.jpg` })).status).toBe("invalid_photo");
     expect((await edit(guest, n, { photo: (await getNominee(other)).photo_path })).status).toBe("invalid_photo");
 
     expect((await edit(guest, n, { photo: await uploadPhoto(guest) })).status).toBe("ok");
     // The replaced photo stays in history for undo, so no other nominee may take it.
-    const thief = original.split("/")[0];
+    const { data: creator } = await admin.from("nominees").select("created_by_device").eq("id", n).single();
+    const thief = creator!.created_by_device as string;
     expect((await nominate(thief, ["funniest"], "x", null, original)).status).toBe("invalid_photo");
   });
 
@@ -403,7 +405,7 @@ describe("edit_nominee", () => {
     expect(await categoriesOf(n)).toEqual(["funniest", "most_unique"]);
     expect((await editsOf(n))[0].device_id).toBeNull();
 
-    // Host photos must be under the host prefix.
+    // Host photos must be under the host prefix, not a guest upload.
     expect((await hostEdit(n, { photo: await uploadPhoto(newDevice()) })).status).toBe("invalid_photo");
   });
 });
@@ -565,12 +567,78 @@ describe("set_timer", () => {
     expect(await rpc<boolean>("voting_is_open")).toBe(true);
   });
 
+  it("start accepts an absolute close time instead of a duration", async () => {
+    const closesAt = new Date(Date.now() + 90 * 60000).toISOString();
+    const res = await rpc<TimerResult>("set_timer", { p_action: "start", p_closes_at: closesAt });
+    expect(res.status).toBe("ok");
+    expect(Date.parse(res.voting_closes_at!)).toBe(Date.parse(closesAt));
+    expect(minutesFromNow(res.voting_opens_at!)).toBeLessThan(0.5);
+    expect(await rpc<boolean>("voting_is_open")).toBe(true);
+  });
+
+  it("rejects a close time in the past, more than 600 minutes ahead, or given with a duration", async () => {
+    const before = await getSettings();
+    const at = (min: number) => new Date(Date.now() + min * 60000).toISOString();
+    const start = (args: Record<string, unknown>) =>
+      rpc<TimerResult>("set_timer", { p_action: "start", ...args }).then((r) => r.status);
+    expect(await start({ p_closes_at: at(-1) })).toBe("invalid");
+    expect(await start({ p_closes_at: at(601) })).toBe("invalid");
+    expect(await start({ p_closes_at: at(60), p_minutes: 30 })).toBe("invalid");
+    expect(await getSettings()).toEqual(before);
+  });
+
   it("rejects bad actions and durations without changing settings", async () => {
     const before = await getSettings();
     expect((await rpc<TimerResult>("set_timer", { p_action: "start", p_minutes: 0 })).status).toBe("invalid");
     expect((await rpc<TimerResult>("set_timer", { p_action: "start" })).status).toBe("invalid");
     expect((await rpc<TimerResult>("set_timer", { p_action: "pause" })).status).toBe("invalid");
     expect(await getSettings()).toEqual(before);
+  });
+});
+
+describe("guest_state", () => {
+  it("reports not_started, open, and closed from the database clock", async () => {
+    type State = { status: string; voting_closes_at: string | null; now: string };
+    expect((await rpc<State>("guest_state")).status).toBe("not_started");
+    await openVoting(30);
+    const open = await rpc<State>("guest_state");
+    expect(open.status).toBe("open");
+    expect((Date.parse(open.voting_closes_at!) - Date.parse(open.now)) / 60000).toBeCloseTo(30, 1);
+    await closeVoting();
+    expect((await rpc<State>("guest_state")).status).toBe("closed");
+  });
+});
+
+describe("issue_upload", () => {
+  type Issued = { status: string; path?: string };
+
+  it("is closed outside the voting window and limits a device to 20 per window", async () => {
+    const guest = newDevice();
+    expect((await rpc<Issued>("issue_upload", { p_device: guest })).status).toBe("closed");
+    await openVoting();
+    await fillRateLimit(guest, "upload", 19);
+    expect((await rpc<Issued>("issue_upload", { p_device: guest })).status).toBe("ok");
+    expect((await rpc<Issued>("issue_upload", { p_device: guest })).status).toBe("rate_limited");
+    expect(await countRows("photo_uploads")).toBe(1);
+  });
+
+  it("issues a guest/<uuid>.jpg path without the device ID, recorded for that device only", async () => {
+    await openVoting();
+    const guest = newDevice();
+    const { status, path } = await rpc<Issued>("issue_upload", { p_device: guest });
+    expect(status).toBe("ok");
+    expect(path).toMatch(/^guest\/[0-9a-f-]{36}\.jpg$/);
+    expect(path).not.toContain(guest);
+    const { data } = await admin.from("photo_uploads").select("device_id").eq("path", path!).single();
+    expect(data!.device_id).toBe(guest);
+  });
+});
+
+describe("photo_uploads and reset_all", () => {
+  it("reset_all returns unused upload paths for cleanup and clears photo_uploads", async () => {
+    const path = await uploadPhoto(newDevice());
+    expect(await rpc<string[]>("reset_all")).toContain(path);
+    expect(await countRows("photo_uploads")).toBe(0);
   });
 });
 

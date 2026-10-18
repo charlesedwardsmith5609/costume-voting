@@ -76,10 +76,15 @@ export async function getSettings(): Promise<{ voting_opens_at: string | null; v
   return data;
 }
 
-// Uploads a tiny placeholder object at <prefix>/<uuid>.jpg, the path shape the functions expect.
-// The prefix is a device ID for guests or "host" for the admin.
-export async function uploadPhoto(prefix: string): Promise<string> {
-  const path = `${prefix}/${randomUUID()}.jpg`;
+// Uploads a tiny placeholder object the way the functions expect it: for "host", at
+// host/<uuid>.jpg; for a device ID, at guest/<uuid>.jpg with a photo_uploads row recording that
+// device, as issue_upload does (without its voting window and rate limit).
+export async function uploadPhoto(owner: string): Promise<string> {
+  const path = `${owner === "host" ? "host" : "guest"}/${randomUUID()}.jpg`;
+  if (owner !== "host") {
+    const { error } = await admin.from("photo_uploads").insert({ path, device_id: owner });
+    if (error) throw new Error(`photo_uploads: ${error.message}`);
+  }
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
   const { error } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: "image/jpeg" });
   if (error) throw new Error(`upload: ${error.message}`);
@@ -176,7 +181,7 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
   ["valid_categories", { p_categories: ["funniest"] }],
   ["clean_name", { p_name: " Sam " }],
   ["valid_name", { p_name: "Sam" }],
-  ["photo_is_fresh", { p_prefix: "host", p_path: "host/x.jpg" }],
+  ["photo_is_fresh", { p_owner: "host", p_path: "host/x.jpg" }],
   [
     "apply_nominee_edit",
     {
@@ -202,6 +207,9 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
     { p_device: id(), p_nominee: id(), p_person_name: "x", p_costume_name: null, p_photo_path: null, p_add_categories: [] },
   ],
   ["set_timer", { p_action: "start", p_minutes: 30 }],
+  ["set_timer", { p_action: "start", p_closes_at: new Date(Date.now() + 3600000).toISOString() }],
+  ["guest_state", {}],
+  ["issue_upload", { p_device: id() }],
   [
     "admin_edit_nominee",
     { p_nominee: id(), p_person_name: "x", p_costume_name: null, p_photo_path: null, p_add_categories: [] },
@@ -212,4 +220,12 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
   ["reset_all", {}],
 ];
 
-export const TABLES = ["settings", "nominees", "nominee_categories", "votes", "nominee_edits", "rate_limits"];
+export const TABLES = [
+  "settings",
+  "nominees",
+  "nominee_categories",
+  "votes",
+  "nominee_edits",
+  "rate_limits",
+  "photo_uploads",
+];

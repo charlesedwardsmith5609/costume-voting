@@ -61,6 +61,14 @@ describe("service role", () => {
     await ok("delete nominees", admin.from("nominees").delete().eq("id", id));
   });
 
+  it("can read and write photo_uploads", async () => {
+    const path = `guest/${randomUUID()}.jpg`;
+    await ok("insert", admin.from("photo_uploads").insert({ path, device_id: randomUUID() }));
+    await ok("select", admin.from("photo_uploads").select("*"));
+    await ok("update", admin.from("photo_uploads").update({ created_at: new Date().toISOString() }).eq("path", path));
+    await ok("delete", admin.from("photo_uploads").delete().eq("path", path));
+  });
+
   it("can read and write rate_limits", async () => {
     const device = randomUUID();
     const row = { device_id: device, action: "vote", window_start: new Date().toISOString(), count: 1 };
