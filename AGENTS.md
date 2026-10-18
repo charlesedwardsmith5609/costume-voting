@@ -36,10 +36,13 @@ Supabase (Postgres + Storage), Tailwind CSS, Vitest.
 
 ## Commands
 
-| Purpose | Windows | macOS / Linux / WSL |
-|---|---|---|
-| Validation gate | `pwsh -NoProfile -File scripts/check.ps1` | `bash scripts/check.sh` |
-| Cross-model review | `pwsh -NoProfile -File scripts/cross-review.ps1` | `bash scripts/cross-review.sh` |
+This project is developed and checked on WSL/Linux with bash only. There are no PowerShell
+scripts; on Windows, run these from a WSL shell.
+
+| Purpose | Command |
+|---|---|
+| Validation gate | `bash scripts/check.sh` |
+| Cross-model review | `bash scripts/cross-review.sh` |
 
 The cross-model review sends the current diff to a different AI provider. When its findings come
 back, give your assessment of each one (agree or disagree, with a reason) and do not change code

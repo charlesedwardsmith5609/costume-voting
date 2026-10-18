@@ -3,6 +3,8 @@
 # Usage: bash scripts/cross-review.sh [--provider openai|anthropic] [--model NAME] [--base REF]
 # Env:   OPENAI_API_KEY / ANTHROPIC_API_KEY, optional REVIEW_PROVIDER, REVIEW_MODEL,
 #        OPENAI_BASE_URL, ANTHROPIC_BASE_URL
+# TODO(harness): add --focus TEXT (prepended to the review request), path arguments to limit the
+# diff, and a higher size limit than 60000 chars. M1's review needed a one-off copy for all three.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
