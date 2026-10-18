@@ -27,7 +27,7 @@ esac
 
 # Include new, untracked files in the diff without staging their content.
 git add --intent-to-add --all >/dev/null 2>&1 || true
-diff=$(git diff --no-color "$base" -- . ':(exclude)go.sum')
+diff=$(git diff --no-color "$base" -- . ':(exclude)package-lock.json')
 if [ -z "$diff" ]; then echo "No changes against $base. Nothing to review."; exit 0; fi
 max=60000
 if [ "${#diff}" -gt "$max" ]; then

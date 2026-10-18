@@ -1,6 +1,12 @@
 .reviews/
 *.local.md
-/bin/
-*.exe
-*.test
-*.out
+
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.vercel/
+
+.env
+.env*.local

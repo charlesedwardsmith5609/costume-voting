@@ -26,7 +26,7 @@ if (-not $key) { Write-Error "Missing API key for $Provider"; exit 2 }
 
 # Include new, untracked files in the diff without staging their content.
 & git add --intent-to-add --all 2>$null | Out-Null
-$diff = (& git diff --no-color $Base -- . ':(exclude)go.sum' | Out-String)
+$diff = (& git diff --no-color $Base -- . ':(exclude)package-lock.json' | Out-String)
 if (-not $diff.Trim()) { Write-Host "No changes against $Base. Nothing to review."; exit 0 }
 $max = 60000
 if ($diff.Length -gt $max) {

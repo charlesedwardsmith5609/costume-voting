@@ -4,24 +4,32 @@ A human engineer directs this work and owns every design decision: what to build
 accept, what to reject, and how to verify it. You implement scoped asks and keep your reasoning
 visible so each decision can be reviewed before it lands.
 
+The product is specified in `SPEC.md`. Stack: Next.js (App Router, TypeScript) on Vercel,
+Supabase (Postgres + Storage), Tailwind CSS, Vitest.
+
 ## Rules
 
 1. **Plan before code.** For any new ask, reply first with a short plan: files touched, types,
-   which goroutine owns which state, and the tests you will add. Wait for approval before writing
+   where each piece of state lives, and the tests you will add. Wait for approval before writing
    code. Exception: when the human says "scaffold", write boilerplate directly.
 2. **Small diffs, one concern each.** Do not add features that were not asked for. If you think
-   something is missing (validation, limits, a command), list it under "Suggestions" at the end of
+   something is missing (validation, limits, a screen), list it under "Suggestions" at the end of
    your reply instead of implementing it.
-3. **Standard library only** unless the human approves a dependency. To propose one, name it and
+3. **Approved dependencies only.** Approved: `next`, `react` (+ `react-dom`),
+   `@supabase/supabase-js`, `tailwindcss` (+ `@tailwindcss/postcss`), `browser-image-compression`,
+   `qrcode`, `vitest`, plus `typescript` and `@types/*`. Anything else needs approval: name it and
    say what it replaces and why.
 4. **Done means the check passes.** After every change, run the check command below and report the
-   result per stage. A clean compile is not done.
-5. **Behavioral tests.** For network code, test through a real listener on `127.0.0.1:0` and
-   `net.Dial`, with deadlines on every read so a broken test fails instead of hanging. No
-   `time.Sleep` for synchronization.
-6. **Name the ownership.** For any change that touches shared state, state which goroutine owns
-   it and how other goroutines reach it (channel, mutex, or immutable copy).
-7. **Load the skill first.** Read `skills/go-network-service.md` before writing server code.
+   result per stage (typecheck, test, build, client bundle secrets). A clean compile is not done.
+5. **Behavioral tests.** Test server rules (voting window, vote changes, rate limits, admin auth,
+   merge) by calling the real route handlers against the test Supabase project
+   (`TEST_SUPABASE_*`), never production. Every test that waits on I/O has a timeout. No sleeps
+   for synchronization; drive time through the database settings row instead.
+6. **Name where state lives.** Postgres owns all shared state. Serverless functions keep no
+   in-memory state between requests (no in-memory rate limits or caches). Multi-step writes
+   (vote, nominate, merge, reset) run as a single Postgres function so they are atomic and use the
+   database clock. For any change that touches shared state, say which table or function owns it.
+7. **Load the skill first.** Read `skills/next-supabase-service.md` before writing server code.
 8. **Ask, don't guess.** If a requirement is ambiguous, ask. If you must assume, put the
    assumption at the top of your reply.
 9. **Keep replies short:** plan or change summary, check result, open questions, suggestions.

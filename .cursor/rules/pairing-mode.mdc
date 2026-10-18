@@ -3,6 +3,6 @@ description: Pairing-mode working agreements
 alwaysApply: true
 ---
 Follow the working agreements in `AGENTS.md` at the repository root for every request: plan
-before code, small diffs, standard library only unless approved, run the check script after every
-change, and name goroutine ownership for any shared state. Read `skills/go-network-service.md`
-before writing server code.
+before code, small diffs, approved dependencies only, run the check script after every change, and
+say which table or Postgres function owns any shared state. Read `skills/next-supabase-service.md`
+before writing server code. The product spec is `SPEC.md`.
