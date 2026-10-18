@@ -25,8 +25,9 @@ stage "build"
 if npx --no-install next build; then echo "PASS"; else echo "FAIL"; fail=1; fi
 
 stage "client bundle secrets"
-# Server-only secret names must never appear in browser JS; if the service role key value is
-# available (env or .env.local), the value must not appear either.
+# Server-only secret names, any Supabase secret key (sb_secret_...), and any legacy JWT with role
+# service_role must never appear in browser JS; if the service role key value is available (env
+# or .env.local), it must not either.
 if [ ! -d .next/static ]; then
   echo "FAIL: .next/static missing (build failed?)"; fail=1
 else
@@ -34,11 +35,24 @@ else
   if [ -z "$key" ] && [ -f .env.local ]; then
     key=$(sed -n 's/^SUPABASE_SERVICE_ROLE_KEY=//p' .env.local | tr -d '"'"'"'\r' | head -n1)
   fi
-  leaks=$(grep -rlE 'SUPABASE_SERVICE_ROLE_KEY|SESSION_SECRET|ADMIN_PASSWORD' .next/static 2>/dev/null)
+  leaks=$(grep -rlE 'SUPABASE_SERVICE_ROLE_KEY|SESSION_SECRET|ADMIN_PASSWORD|sb_secret_[A-Za-z0-9_-]{16,}' .next/static 2>/dev/null)
+  # Legacy JWT-format keys: the anon JWT may legitimately ship to the browser, so decode each
+  # JWT payload and flag only role "service_role".
+  jwt_re='eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}'
+  for f in $(grep -rlE "$jwt_re" .next/static 2>/dev/null); do
+    for t in $(grep -ohE "$jwt_re" "$f" | sort -u); do
+      p=$(printf '%s' "$t" | cut -d. -f2 | tr '_-' '/+')
+      while [ $(( ${#p} % 4 )) -ne 0 ]; do p="$p="; done
+      if printf '%s' "$p" | base64 -d 2>/dev/null | grep -qE '"role"[[:space:]]*:[[:space:]]*"service_role"'; then
+        leaks=$(printf '%s\n%s' "$leaks" "$f")
+      fi
+    done
+  done
   if [ -n "$key" ]; then
     leaks=$(printf '%s\n%s' "$leaks" "$(grep -rlF -- "$key" .next/static 2>/dev/null)" | sed '/^$/d' | sort -u)
   else
-    echo "note: SUPABASE_SERVICE_ROLE_KEY not set; checked secret names only"
+    leaks=$(printf '%s\n' "$leaks" | sed '/^$/d' | sort -u)
+    echo "note: SUPABASE_SERVICE_ROLE_KEY not set; checked secret names and key patterns only"
   fi
   if [ -n "$leaks" ]; then echo "FAIL: secret found in client bundle:"; echo "$leaks"; fail=1; else echo "PASS"; fi
 fi

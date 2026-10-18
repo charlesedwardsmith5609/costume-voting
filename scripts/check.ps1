@@ -33,8 +33,9 @@ Stage 'build'
 Result ($LASTEXITCODE -eq 0)
 
 Stage 'client bundle secrets'
-# Server-only secret names must never appear in browser JS; if the service role key value is
-# available (env or .env.local), the value must not appear either.
+# Server-only secret names, any Supabase secret key (sb_secret_...), and any legacy JWT with role
+# service_role must never appear in browser JS; if the service role key value is available (env
+# or .env.local), it must not either.
 if (-not (Test-Path .next/static)) {
     Write-Host 'FAIL: .next/static missing (build failed?)' -ForegroundColor Red
     $fail = $true
@@ -45,11 +46,22 @@ if (-not (Test-Path .next/static)) {
         if ($line) { $key = ($line -replace '^SUPABASE_SERVICE_ROLE_KEY=', '').Trim().Trim('"', "'") }
     }
     $files = Get-ChildItem -Recurse -File .next/static
-    $leaks = @($files | Select-String -Pattern 'SUPABASE_SERVICE_ROLE_KEY|SESSION_SECRET|ADMIN_PASSWORD' -List | ForEach-Object Path)
+    $leaks = @($files | Select-String -Pattern 'SUPABASE_SERVICE_ROLE_KEY|SESSION_SECRET|ADMIN_PASSWORD|sb_secret_[A-Za-z0-9_-]{16,}' -List | ForEach-Object Path)
+    # Legacy JWT-format keys: the anon JWT may legitimately ship to the browser, so decode each
+    # JWT payload and flag only role "service_role".
+    $jwtRe = 'eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}'
+    foreach ($m in @($files | Select-String -Pattern $jwtRe -AllMatches -CaseSensitive)) {
+        foreach ($t in $m.Matches.Value) {
+            $p = $t.Split('.')[1].Replace('-', '+').Replace('_', '/')
+            while ($p.Length % 4 -ne 0) { $p += '=' }
+            try { $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p)) } catch { continue }
+            if ($json -match '"role"\s*:\s*"service_role"') { $leaks += $m.Path }
+        }
+    }
     if ($key) {
         $leaks += @($files | Select-String -SimpleMatch -Pattern $key -List | ForEach-Object Path)
     } else {
-        Write-Host 'note: SUPABASE_SERVICE_ROLE_KEY not set; checked secret names only'
+        Write-Host 'note: SUPABASE_SERVICE_ROLE_KEY not set; checked secret names and key patterns only'
     }
     if ($leaks.Count -gt 0) {
         Write-Host 'FAIL: secret found in client bundle:' -ForegroundColor Red
