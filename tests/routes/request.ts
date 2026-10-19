@@ -1,8 +1,12 @@
+import { sessionValue } from "@/lib/server/admin";
 import { BUCKET } from "../db/helpers";
 
 const BASE = "http://localhost:3000";
 
-type Opts = { device?: string | null; body?: unknown; rawBody?: string; cookie?: string };
+// admin: true sends a valid admin session cookie; ip sets x-real-ip (login rate limit).
+type Opts = { device?: string | null; body?: unknown; rawBody?: string; cookie?: string; admin?: boolean; ip?: string };
+
+export const adminCookie = () => `admin_session=${sessionValue(Date.now() + 3600_000)}`;
 
 export function get(path: string, opts: Opts = {}): Request {
   return new Request(BASE + path, { headers: headers(opts) });
@@ -16,7 +20,9 @@ export function post(path: string, opts: Opts = {}): Request {
 function headers(opts: Opts): Headers {
   const h = new Headers({ "content-type": "application/json" });
   if (opts.device) h.set("x-device-id", opts.device);
-  if (opts.cookie) h.set("cookie", opts.cookie);
+  const cookies = [opts.cookie, opts.admin ? adminCookie() : undefined].filter(Boolean);
+  if (cookies.length > 0) h.set("cookie", cookies.join("; "));
+  if (opts.ip) h.set("x-real-ip", opts.ip);
   return h;
 }
 

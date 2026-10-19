@@ -9,8 +9,8 @@ Product spec: `SPEC.md`. Updated at the end of each milestone.
 |---|---|---|---|
 | M0 | Toolchain, scaffold, check scripts, rules update | Sat 10/17 | Done (`3604d08`) |
 | M1 | SQL migration plus tests of the SQL functions; host creates Supabase projects and env vars | Sun 10/18 | Done (`b2e50f2`, `d1a9588`) |
-| M2 | Guest API routes plus tests: time window, vote changes, hidden or wrong-category nominee, rate limits, no vote data in responses | Mon 10/19 | Done (branch `feat/m2-guest-api`) |
-| M3 | Admin auth and routes plus tests: every route returns 401 without the cookie; merge and reset; start by close time | Mon 10/19 | Not started |
+| M2 | Guest API routes plus tests: time window, vote changes, hidden or wrong-category nominee, rate limits, no vote data in responses | Mon 10/19 | Done (`81c7c4a`) |
+| M3 | Admin auth and routes plus tests: every route returns 401 without the cookie; merge and reset; start by close time | Mon 10/19 | Done (branch `feat/m3-admin-api`) |
 | M4 | Guest UI: home (open-until time, last-15-minute countdown and banner), category grid, add nominee with compression and retry, dark theme at 360 px | Tue 10/20 | Not started |
 | M5 | Admin UI (close-time picker as the default, preset to 10:00 PM on Sat 10/24), reveal view (ties, zero votes), QR page and PNG | Wed 10/21 | Not started |
 | M6 | README, party-night runbook, Vercel deploy; host provides Vercel account, env vars, and domain | Thu 10/22 | Not started |
@@ -23,7 +23,11 @@ M2 is done: all eight guest routes (`state`, `nominees`, `my-votes`, `vote`, `up
 against the test project, including a check that no guest response contains vote data or any
 device ID. Cross-review findings are fixed. Migrations 0002 and 0003 are on the test project.
 
-Next: M3 (admin auth and routes, including start by close time).
+M3 is done: login, logout, and session; timer (duration or close time); results; moderation
+(nominee list, hide, delete, host edit and upload URL, set category, merge, edit history, undo);
+CSV export; and reset. A test finds every admin route on disk and checks it returns 401 without a
+valid session. Cross-review findings (1,000-row read limits) accepted: the party has at most
+100 guests. No migration needed.
 
 Before deploy (M6): run `0002_guest_reads.sql` and `0003_photo_uploads.sql` on production.
 
@@ -41,3 +45,5 @@ Before deploy (M6): run `0002_guest_reads.sql` and `0003_photo_uploads.sql` on p
 | M2 | **All-night voting window:** one window for nominating, editing, uploads, and voting, from start until close; no separate nominations phase. Guests can change their vote until close. Phases stay `not_started`, `open`, `closed`. The host starts with a close time (default, preset to 10:00 PM on Sat 10/24, host's local time) or a duration. Guests see "Voting open until [time]", and in the last 15 minutes a live countdown with a "Voting closes soon!" banner. |
 | M2 | **Guest API details (M2):** upload URLs are limited to 20 per device per 10 minutes and only issued while voting is open. Category lists are newest first by time added to that category. `/api/my-votes` leaves out votes for hidden nominees. |
 | M2 | **No device IDs in photo paths (cross-review):** guest photos are `guest/<uuid>.jpg`, with the owning device in `photo_uploads`, because a device ID read from a public photo URL was enough to read or change that device's votes. Upload URLs issued just before close stay valid for 2 hours; accepted, since a late upload can never become a nominee or an edit. |
+| M3 | **Admin session:** a signed cookie (expiry plus HMAC with `SESSION_SECRET`), HttpOnly, SameSite=Strict, 12 hours; no server-side session store. Login is limited to 10 attempts per IP per 10 minutes through `rate_limits`. |
+| M3 | **CSV and delete:** hidden nominees' rows show their actual votes; guest text starting with `=`, `+`, `-`, or `@` gets a leading `'`; deleting a nominee keeps its photos in Storage until Reset. |

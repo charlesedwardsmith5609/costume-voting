@@ -98,7 +98,7 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 
 ## Host (admin) experience
 
-- Route: `/admin`, protected by a password from an environment variable (`ADMIN_PASSWORD`). Use an httpOnly session cookie after login. Every admin API route checks it on the server.
+- Route: `/admin`, protected by a password from an environment variable (`ADMIN_PASSWORD`). Use an httpOnly session cookie after login. Every admin API route checks it on the server. The session lasts 12 hours. Login is limited to 10 attempts per IP address per 10 minutes.
 - **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future and at most 10 hours ahead.
 - **Live results:** per category, nominees ranked by vote count with photo thumbnails, auto-refreshing every few seconds (or Supabase Realtime). Show total votes per category and number of distinct voting devices.
 - **Winner reveal view:** a full-screen view showing the winner of each category with their photo, one at a time, for announcing on a TV or the host's phone. Handle ties by showing all tied nominees.
@@ -110,7 +110,9 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 - **Edit history:** per nominee, every edit (who: a device or the host; old and new names, photo, and categories; when) with a one-click "Undo this edit". Undo restores the values that edit changed, even if later edits changed them again; undoing a category add removes that category and its votes. Each undo is logged as a host edit and can itself be undone.
 - **CSV export:** one row per nominee per category with columns: category, rank, display label, person_name, costume_name, votes, hidden, photo URL.
   - Rank is dense by vote count within the category: tied nominees share a rank and the next rank follows on (1, 1, 2).
-  - Hidden nominees are listed at the bottom of each category with an empty rank and hidden = true, so they never look like they placed.
+  - Hidden nominees are listed at the bottom of each category with an empty rank and hidden = true, so they never look like they placed. Their votes column shows the votes they actually have.
+  - Guest-typed text that starts with `=`, `+`, `-`, or `@` gets a leading `'`, so a spreadsheet never runs it as a formula. The file is UTF-8 with a byte order mark so Excel shows emoji correctly.
+- **Delete** removes a nominee with its categories, votes, and edit history. Its photos stay in Storage until Reset.
 - **QR code page:** shows a large, printable QR code for the guest URL with the text "Scan to vote for best costume!" and the categories listed.
 - **Reset:** a guarded "clear all votes and nominees" action for testing, requiring the host to type RESET.
 
