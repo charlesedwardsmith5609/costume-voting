@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme inline {
+  --font-title: var(--font-creepster), cursive;
+}
+
 @theme {
   --color-night: #0d0a14;
   --color-pumpkin: #ff7a1a;
