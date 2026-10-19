@@ -10,8 +10,8 @@ Product spec: `SPEC.md`. Updated at the end of each milestone.
 | M0 | Toolchain, scaffold, check scripts, rules update | Sat 10/17 | Done (`3604d08`) |
 | M1 | SQL migration plus tests of the SQL functions; host creates Supabase projects and env vars | Sun 10/18 | Done (`b2e50f2`, `d1a9588`) |
 | M2 | Guest API routes plus tests: time window, vote changes, hidden or wrong-category nominee, rate limits, no vote data in responses | Mon 10/19 | Done (`81c7c4a`) |
-| M3 | Admin auth and routes plus tests: every route returns 401 without the cookie; merge and reset; start by close time | Mon 10/19 | Done (branch `feat/m3-admin-api`) |
-| M4 | Guest UI: home (open-until time, last-15-minute countdown and banner), category grid, add nominee with compression and retry, dark theme at 360 px | Tue 10/20 | Not started |
+| M3 | Admin auth and routes plus tests: every route returns 401 without the cookie; merge and reset; start by close time | Mon 10/19 | Done (`bd543ec`) |
+| M4 | Guest UI: home (open-until time, last-15-minute countdown and banner), category grid, add nominee with compression and retry, dark theme at 360 px | Tue 10/20 | In review: code and tests written, check passes |
 | M5 | Admin UI (close-time picker as the default, preset to 10:00 PM on Sat 10/24), reveal view (ties, zero votes), QR page and PNG | Wed 10/21 | Not started |
 | M6 | README, party-night runbook, Vercel deploy; host provides Vercel account, env vars, and domain | Thu 10/22 | Not started |
 | — | Host testing on real phones (one iPhone with Safari, one Android with Chrome) | Fri 10/23 | — |
@@ -29,7 +29,17 @@ CSV export; and reset. A test finds every admin route on disk and checks it retu
 valid session. Cross-review findings (1,000-row read limits) accepted: the party has at most
 100 guests. No migration needed.
 
-Before deploy (M6): run `0002_guest_reads.sql` and `0003_photo_uploads.sql` on production.
+M4 is in review: home, category, add, and edit screens, with photo thumbnails. Pure logic
+(clock and countdown, search, photo checks, the upload and retry steps, error copy) has unit
+tests; layout, camera, and EXIF need the phone checks. Scope addition: "Nominate a costume"
+on the home screen (`/nominate`, `/nominate/[id]`, `/nominate/new`), the unfiltered nominee list,
+and migration 0004 (`add_nominee_to_categories`).
+
+Manual testing: `npm run dev:test` runs the dev server against the test project (see
+`scripts/dev-test.sh`); don't run the check at the same time, since it resets that project.
+
+Before deploy (M6): run `0002_guest_reads.sql`, `0003_photo_uploads.sql`, and
+`0004_add_categories.sql` on production.
 
 ## Decisions
 
@@ -47,3 +57,7 @@ Before deploy (M6): run `0002_guest_reads.sql` and `0003_photo_uploads.sql` on p
 | M2 | **No device IDs in photo paths (cross-review):** guest photos are `guest/<uuid>.jpg`, with the owning device in `photo_uploads`, because a device ID read from a public photo URL was enough to read or change that device's votes. Upload URLs issued just before close stay valid for 2 hours; accepted, since a late upload can never become a nominee or an edit. |
 | M3 | **Admin session:** a signed cookie (expiry plus HMAC with `SESSION_SECRET`), HttpOnly, SameSite=Strict, 12 hours; no server-side session store. Login is limited to 10 attempts per IP per 10 minutes through `rate_limits`. |
 | M3 | **CSV and delete:** hidden nominees' rows show their actual votes; guest text starting with `=`, `+`, `-`, or `@` gets a leading `'`; deleting a nominee keeps its photos in Storage until Reset. |
+| M4 | **Thumbnails:** each photo gets a 600 px `<path>.thumb.jpg` made on the phone and uploaded through a second signed URL; guest grids and strips use it and fall back to the full photo. No schema change. Photos are compressed on the page, not in the library's web worker, which loads from a CDN. |
+| M4 | **Guest screens:** before start and after close, the grid stays visible with Vote, Add, and Edit hidden. The phone polls `/api/state` every 15 seconds and corrects its clock by the measured offset for the countdown. |
+| M4 | **Upload retries (cross-review):** a failed photo upload starts over with fresh URLs (Storage may have kept the file, or the URL expired). After a save with no clear answer, an "already used" photo on retry counts as saved, so a lost response never creates a duplicate nominee. No idempotency key or migration needed, since only the issuing device can use a path. |
+| M4 | **Nominate a costume (scope addition):** a home-screen flow: pick an existing nominee to add categories, or add someone new with nothing pre-checked and no "Already nominated?" strips. Both return home; the button is hidden outside the voting window. `GET /api/nominees` without `category` lists every non-hidden nominee, newest created first. Adding several categories is one call to `add_nominee_to_categories` (migration 0004): one rate-limit hit, one edit-history row, all or nothing. `/api/add-to-category` now takes `categories: [...]`. |

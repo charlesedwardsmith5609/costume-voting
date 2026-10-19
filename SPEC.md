@@ -48,7 +48,18 @@ There is one window for everything, and it can stay open all night. Nominating, 
 
 - Party title and a short line: "Vote for your favorite costumes!"
 - Voting status: "Voting opens soon" before the host starts voting; "Voting open until [time]" (for example "Voting open until 10:30 PM") while open; in the last 15 minutes, a live countdown ("Voting closes in 12:34") with a "Voting closes soon!" banner; "Voting is closed" after. The countdown uses the server's clock, corrected for the phone's clock offset.
+- While voting is open, a prominent "Nominate a costume" button above the categories (see "Nominate a costume").
 - Four category tabs or cards. Show a checkmark on categories where this device has already voted.
+
+### Nominate a costume
+
+The home-screen path for nominating, with no category chosen first. Hidden before voting starts and after it closes.
+
+1. "Is this person already here?": a grid of every non-hidden nominee across all categories, newest first, with a name search box. Each card shows the nominee's label and the categories it is already in.
+2. Tapping an existing nominee shows the category checkboxes, with its current categories checked and disabled, to add more. No photo or names are needed. All the chosen categories are added in one edit. Afterward, the guest returns to the home screen.
+3. "Not here? Add someone new" opens the add-a-nominee form with no category pre-checked and without the "Already nominated?" strips (the guest just looked through every nominee). At least one category is required. Afterward, the guest returns to the home screen.
+
+The per-category "+ Add a nominee" path works as described below.
 
 ### Category screen
 
@@ -174,14 +185,15 @@ create table nominee_edits (
 
 - Enable Row Level Security on all tables with **no policies for the anon role**, so the browser cannot read or write tables directly. All access goes through server routes using the service role.
 - The Supabase projects have "Automatically expose new tables" disabled. The migration grants `service_role` select, insert, update, and delete on every table, usage on the `nominee_edits` sequence, and execute on every function. `anon` and `authenticated` get nothing.
-- Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `edit_nominee`, `issue_upload` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
+- Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `add_nominee_to_categories` (several categories in one edit), `edit_nominee`, `issue_upload` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
 - Voting is an upsert on `(device_id, category)`. The server checks that the nominee exists, isn't hidden, is in that category (`nominee_categories`), and that `now()` is between `voting_opens_at` and `voting_closes_at`.
 - Nominating, adding to a category, guest edits, and upload URLs check the same time window. Host edits do not.
 - `set_timer('start')` takes either a duration (`p_minutes`) or an absolute close time (`p_closes_at`); extend and end take minutes or nothing.
 - The request start time counts: window checks use the database clock at the start of the request's transaction. A request that started before voting closed is accepted even if it finishes a few milliseconds after, for example while waiting on a row lock.
 - A new or replacement photo must be an uploaded object that no nominee or edit has used before. A unique index on `nominees.photo_path` backs this up. Guest photos live at `guest/<uuid>.jpg`; the database chooses the path when it issues the upload URL and records the device in `photo_uploads`, and only that device can use it. Host photos live at `host/<uuid>.jpg`. Photo paths and URLs never contain a device ID, because a device ID is enough to read or change that device's votes.
+- Each photo has a small copy next to it, `<path>.thumb.jpg` (600 px, made on the phone and uploaded through a second signed URL issued with the photo's), used in guest grids and strips. Thumbnails are not checked by the server and can never be used as a nominee photo. When one is missing, the UI shows the full photo. Reset removes thumbnails with their photos.
 - Known limitation: a signed upload URL stays valid for 2 hours (fixed by Supabase), so a URL issued just before close can still upload a file after close. That file can never become a nominee or an edit, because nominating and editing check the voting window; it is only an unused file in the bucket, removed by Reset.
-- Public API returns only nominee id, person name, costume name, categories, and photo URL, never vote data. The only vote data a guest can get is their own device's current pick per category.
+- Public API returns only nominee id, person name, costume name, categories, and photo and thumbnail URLs, never vote data. The only vote data a guest can get is their own device's current pick per category.
 
 ## Abuse and safety (keep it light)
 
@@ -221,6 +233,7 @@ Write automated tests where practical (server route tests for voting and timer r
 19. The anon (publishable) key cannot call any database function, including `edit_nominee`, or read or write any table; the service role (secret) key can do all of these.
 20. A photo-only nominee shows "Mystery guest 👻" with a "Know who this is? Add their name" link; a nominee with both names shows two lines on the card and "Sam as The Mad Hatter" in single-line contexts.
 21. The CSV export has one row per nominee per category with the listed columns; tied nominees share a rank (1, 1, 2), and hidden nominees are at the bottom with an empty rank.
+22. From the home screen, "Nominate a costume" lists every non-hidden nominee with its categories, and the search box filters it by name. Tapping one and checking two more categories adds both (one entry in the edit history) with no photo or names, and it appears in each. "Not here? Add someone new" requires at least one category and adds a new nominee. Both paths return to the home screen. Manual check on each test phone.
 
 ## Deliverables
 
