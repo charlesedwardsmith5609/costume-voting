@@ -15,8 +15,10 @@ const CLIENT = [
   "app/help/page.tsx",
   ...files("app/c"),
   ...files("app/nominate"),
-  ...files("components"),
-  ...readdirSync(join(ROOT, "lib")).filter((f) => /\.tsx?$/.test(f)).map((f) => `lib/${f}`),
+  ...files("components").filter((f) => !f.startsWith("components/admin/")),
+  ...readdirSync(join(ROOT, "lib"))
+    .filter((f) => /\.tsx?$/.test(f) && f !== "adminApi.ts")
+    .map((f) => `lib/${f}`),
 ];
 
 describe("guest pages", () => {
@@ -27,6 +29,7 @@ describe("guest pages", () => {
   it.each(CLIENT)("%s never calls an admin route or imports server code", (file) => {
     const text = readFileSync(join(ROOT, file), "utf8");
     expect(text).not.toMatch(/\/api\/admin/);
+    expect(text).not.toMatch(/adminApi|components\/admin/);
     expect(text).not.toMatch(/lib\/server|["']\.\/server/);
   });
 });
