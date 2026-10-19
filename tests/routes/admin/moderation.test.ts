@@ -58,6 +58,7 @@ describe("hide and delete", () => {
     await as(hide, "/api/admin/hide", { nomineeId: n, hidden: true });
     const { body } = await call(adminNominees(get("/api/admin/nominees", { admin: true })));
     expect(body.nominees).toMatchObject([{ id: n, hidden: true, categories: ["funniest"], personName: "Al" }]);
+    expect(body.nominees[0].thumbUrl).toBe(body.nominees[0].photoUrl.replace(/\.jpg$/, ".thumb.jpg"));
   });
 
   it("delete removes the nominee and its votes but keeps its photo in Storage", async () => {

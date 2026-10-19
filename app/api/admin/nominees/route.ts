@@ -1,7 +1,7 @@
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import { requireAdmin } from "@/lib/server/admin";
 import { json, serverError } from "@/lib/server/http";
-import { db, photoUrl } from "@/lib/server/supabase";
+import { db, photoUrl, thumbPath } from "@/lib/server/supabase";
 
 const ORDER = CATEGORIES.map((c) => c.slug);
 
@@ -22,6 +22,7 @@ export async function GET(req: Request): Promise<Response> {
       personName: n.person_name,
       costumeName: n.costume_name,
       photoUrl: photoUrl(client, n.photo_path),
+      thumbUrl: photoUrl(client, thumbPath(n.photo_path)),
       hidden: n.hidden,
       createdAt: n.created_at,
       categories: (n.nominee_categories as { category: CategorySlug }[])
