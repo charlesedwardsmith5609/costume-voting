@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canWrite, clockOffset, COUNTDOWN_MS, formatCountdown, formatTime, statusView } from "@/lib/clock";
+import { canWrite, clockOffset, COUNTDOWN_MS, formatCloseTime, formatCountdown, formatTime, statusView } from "@/lib/clock";
 import type { GuestState } from "@/lib/types";
 
 const OPENS = Date.parse("2026-10-24T19:00:00Z");
@@ -24,7 +24,7 @@ describe("statusView", () => {
   });
 
   it("is open until the close time, then counts down for the last 15 minutes", () => {
-    expect(statusView(open, OPENS)).toEqual({ kind: "open_until", closesAt: new Date(CLOSES) });
+    expect(statusView(open, OPENS)).toEqual({ kind: "open_until", closesAt: new Date(CLOSES), now: new Date(OPENS) });
     expect(statusView(open, CLOSES - COUNTDOWN_MS - 1).kind).toBe("open_until");
     expect(statusView(open, CLOSES - COUNTDOWN_MS)).toEqual({ kind: "countdown", msLeft: COUNTDOWN_MS });
     expect(statusView(open, CLOSES - 1)).toEqual({ kind: "countdown", msLeft: 1 });
@@ -36,7 +36,7 @@ describe("statusView", () => {
   });
 
   it("only allows writes while open", () => {
-    expect(canWrite({ kind: "open_until", closesAt: new Date(CLOSES) })).toBe(true);
+    expect(canWrite({ kind: "open_until", closesAt: new Date(CLOSES), now: new Date(OPENS) })).toBe(true);
     expect(canWrite({ kind: "countdown", msLeft: 5 })).toBe(true);
     for (const kind of ["loading", "opens_soon", "closed"] as const) expect(canWrite({ kind })).toBe(false);
   });
@@ -68,5 +68,11 @@ describe("formatting", () => {
   it("shows the close time as hours and minutes", () => {
     const t = new Date(2026, 9, 24, 22, 30);
     expect(formatTime(t, "en-US")).toBe("10:30 PM");
+  });
+
+  it("adds the date only when voting closes on another day", () => {
+    const now = new Date(2026, 9, 24, 19, 0);
+    expect(formatCloseTime(new Date(2026, 9, 24, 23, 59), now, "en-US")).toBe("11:59 PM");
+    expect(formatCloseTime(new Date(2026, 9, 25, 1, 0), now, "en-US")).toBe("Sun, Oct 25, 1:00 AM");
   });
 });

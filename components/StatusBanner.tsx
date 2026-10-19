@@ -1,4 +1,4 @@
-import { formatCountdown, formatTime, type StatusView } from "@/lib/clock";
+import { formatCloseTime, formatCountdown, type StatusView } from "@/lib/clock";
 import { GENERIC_ERROR } from "@/lib/guestErrors";
 import { SECONDARY } from "./ui";
 
@@ -34,7 +34,7 @@ export function StatusBanner({ view, failed, onRetry }: { view: StatusView; fail
         ? "Voting opens soon"
         : view.kind === "closed"
           ? "Voting is closed"
-          : `Voting open until ${formatTime(view.closesAt)}`;
+          : `Voting open until ${formatCloseTime(view.closesAt, view.now)}`;
   const colors =
     view.kind === "closed" ? "border-zinc-600 bg-zinc-800 text-zinc-200" : "border-witch/50 bg-violet-950 text-violet-100";
   return (

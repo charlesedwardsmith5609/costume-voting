@@ -8,7 +8,8 @@ export const COUNTDOWN_MS = 15 * 60_000;
 export type StatusView =
   | { kind: "loading" }
   | { kind: "opens_soon" }
-  | { kind: "open_until"; closesAt: Date }
+  // now is the server time, to tell whether the close is on another day.
+  | { kind: "open_until"; closesAt: Date; now: Date }
   | { kind: "countdown"; msLeft: number }
   | { kind: "closed" };
 
@@ -26,7 +27,7 @@ export function statusView(state: GuestState | null, nowMs: number): StatusView 
   const msLeft = closes - nowMs;
   if (msLeft <= 0) return { kind: "closed" };
   if (msLeft <= COUNTDOWN_MS) return { kind: "countdown", msLeft };
-  return { kind: "open_until", closesAt: new Date(closes) };
+  return { kind: "open_until", closesAt: new Date(closes), now: new Date(nowMs) };
 }
 
 export function canWrite(view: StatusView): boolean {
@@ -42,4 +43,11 @@ export function formatCountdown(msLeft: number): string {
 // "10:30 PM" in the phone's locale and time zone.
 export function formatTime(date: Date, locale?: string): string {
   return date.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
+}
+
+// The close time for "Voting open until …": just the time when it is today, otherwise the date
+// and time ("Sun, Oct 25, 1:00 AM"). Days are the phone's local days.
+export function formatCloseTime(closesAt: Date, now: Date, locale?: string): string {
+  if (closesAt.toDateString() === now.toDateString()) return formatTime(closesAt, locale);
+  return closesAt.toLocaleString(locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
