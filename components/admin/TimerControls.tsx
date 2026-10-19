@@ -3,15 +3,17 @@ import { useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { INPUT, PRIMARY, SECONDARY } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { adminErrorMessage, endVoting, extendTimer, startTimer } from "@/lib/adminApi";
+import { adminErrorMessage, endVoting, extendTimer, setPublished, startTimer } from "@/lib/adminApi";
 import { closesAtForServer, closeTimeProblem, defaultClose } from "@/lib/adminTime";
 import { formatCloseTime, formatCountdown } from "@/lib/clock";
 import { useGuestState } from "@/lib/hooks";
 
 const DEFAULT_MINUTES = 120;
 
-// Start (by close time, the default, or by duration), extend, end, and reopen. The status comes
-// from /api/state, the same answer guests get. Owner: set_timer (settings).
+// Start (by close time, the default, or by duration), extend, end, reopen, and publish results
+// after close. The status comes
+// from /api/state, the same answer guests get.
+// Owner: set_timer, set_results_published (settings).
 export function TimerControls() {
   const { expired } = useAdmin();
   const { state, view, failed, refresh } = useGuestState();
@@ -37,6 +39,7 @@ export function TimerControls() {
   }
 
   function start() {
+    if (view.kind === "closed" && view.published && !window.confirm("Reopening voting unpublishes the results. Reopen?")) return;
     if (mode === "close_time") {
       const problem = closeTimeProblem(closeValue, Date.now());
       if (problem) return setError(problem);
@@ -84,6 +87,29 @@ export function TimerControls() {
           </div>
           <button type="button" disabled={busy} onClick={end} className={`${SECONDARY} w-full`}>
             End voting now
+          </button>
+        </section>
+      )}
+
+      {view.kind === "closed" && (
+        <section className="space-y-3 rounded-2xl bg-white/5 px-4 py-4 ring-1 ring-pumpkin/50">
+          <h2 className="text-2xl font-bold">Results for guests</h2>
+          <p className="text-lg">
+            {view.published
+              ? "Published: guests see the winners and the rankings (never vote counts)."
+              : "Not published: guests see “Votes are in! Stand by for the winners to be announced.”"}
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              const next = !view.published;
+              if (next && !window.confirm("Publish results? Every guest will see the winners right away.")) return;
+              act(() => setPublished(next));
+            }}
+            className={`${view.published ? SECONDARY : PRIMARY} w-full`}
+          >
+            {view.published ? "Unpublish results" : "Publish results"}
           </button>
         </section>
       )}

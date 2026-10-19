@@ -41,6 +41,7 @@ const MESSAGES: Record<string, string> = {
   network: "Couldn't reach the server. Check your connection.",
   invalid_timer: "That closing time or duration isn't valid. Pick a time in the future.",
   not_started: "Voting hasn't been started yet.",
+  not_closed: "Results can be published only after voting closes.",
 };
 
 export function adminErrorMessage(code: string): string {
@@ -51,4 +52,6 @@ export type TimerResult = { votingOpensAt: string; votingClosesAt: string };
 export const startTimer = (body: { closesAt: string } | { minutes: number }) =>
   adminRequest<TimerResult>("/api/admin/timer", { action: "start", ...body });
 export const extendTimer = (minutes: number) => adminRequest<TimerResult>("/api/admin/timer", { action: "extend", minutes });
+export const setPublished = (published: boolean) =>
+  adminRequest<{ resultsPublished: boolean }>("/api/admin/publish", { published });
 export const endVoting = () => adminRequest<TimerResult>("/api/admin/timer", { action: "end" });
