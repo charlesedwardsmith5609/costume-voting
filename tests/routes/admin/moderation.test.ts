@@ -109,6 +109,7 @@ describe("host edits, upload URL, history, and undo", () => {
     expect(up.status).toBe(200);
     expect(up.body.path).toMatch(/^host\/[0-9a-f-]{36}\.jpg$/);
     await putSigned(up.body.signedUrl);
+    await putSigned(up.body.thumbSignedUrl);
     const res = await as(edit, "/api/admin/edit", {
       nomineeId: n,
       personName: "Sam",

@@ -25,7 +25,7 @@ function shape(value: unknown, path = "", maps: string[] = []): string[] {
   return [path];
 }
 
-const NOMINEE = ["id", "personName", "costumeName", "categories[]", "photoUrl"];
+const NOMINEE = ["id", "personName", "costumeName", "categories[]", "photoUrl", "thumbUrl"];
 const nomineeAt = (prefix: string) => NOMINEE.map((f) => `${prefix}[].${f}`);
 const ERROR = ["error", "message"];
 const ALLOWED: Record<string, string[]> = {
@@ -39,7 +39,7 @@ const ALLOWED: Record<string, string[]> = {
   ],
   myVotes: ["votes.*"],
   vote: ["ok"],
-  uploadUrl: ["path", "signedUrl", "token"],
+  uploadUrl: ["path", "signedUrl", "token", "thumbSignedUrl"],
   nominate: ["id"],
   addToCategory: ["ok"],
   edit: ["ok"],

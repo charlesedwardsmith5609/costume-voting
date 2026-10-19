@@ -29,6 +29,7 @@ describe("buildNomineeLists", () => {
       costumeName: null,
       categories: ["funniest", "best_couples"],
       photoUrl: `https://cdn/${rows[2].photo_path}`,
+      thumbUrl: `https://cdn/${rows[2].photo_path.replace(/\.jpg$/, ".thumb.jpg")}`,
     });
     expect(lists.matches).toBeUndefined();
   });

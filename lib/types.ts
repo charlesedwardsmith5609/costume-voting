@@ -7,6 +7,9 @@ export type GuestNominee = {
   costumeName: string | null;
   categories: CategorySlug[];
   photoUrl: string;
+  // Small copy for grids and strips; may be missing (older photos, failed upload), so the UI
+  // falls back to photoUrl.
+  thumbUrl: string;
 };
 
 export type VotingStatus = "not_started" | "open" | "closed";

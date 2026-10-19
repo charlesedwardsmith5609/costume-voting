@@ -59,7 +59,8 @@ export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Pr
 
 export async function resetDb(): Promise<void> {
   const paths = await rpc<string[]>("reset_all");
-  if (paths.length > 0) await admin.storage.from(BUCKET).remove(paths);
+  const all = paths.flatMap((p) => [p, p.replace(/\.jpg$/, ".thumb.jpg")]);
+  for (let i = 0; i < all.length; i += 100) await admin.storage.from(BUCKET).remove(all.slice(i, i + 100));
 }
 
 export async function openVoting(minutes = 30): Promise<void> {
