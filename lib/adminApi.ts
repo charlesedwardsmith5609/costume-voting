@@ -39,8 +39,16 @@ const MESSAGES: Record<string, string> = {
   rate_limited: "Too many tries. Wait a few minutes and try again.",
   unauthorized: "Your session expired. Log in again.",
   network: "Couldn't reach the server. Check your connection.",
+  invalid_timer: "That closing time or duration isn't valid. Pick a time in the future.",
+  not_started: "Voting hasn't been started yet.",
 };
 
 export function adminErrorMessage(code: string): string {
   return MESSAGES[code] ?? "Something went wrong. Try again.";
 }
+
+export type TimerResult = { votingOpensAt: string; votingClosesAt: string };
+export const startTimer = (body: { closesAt: string } | { minutes: number }) =>
+  adminRequest<TimerResult>("/api/admin/timer", { action: "start", ...body });
+export const extendTimer = (minutes: number) => adminRequest<TimerResult>("/api/admin/timer", { action: "extend", minutes });
+export const endVoting = () => adminRequest<TimerResult>("/api/admin/timer", { action: "end" });
