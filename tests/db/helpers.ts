@@ -211,6 +211,7 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
   ["set_timer", { p_action: "start", p_minutes: 30 }],
   ["set_timer", { p_action: "start", p_closes_at: new Date(Date.now() + 3600000).toISOString() }],
   ["guest_state", {}],
+  ["set_results_published", { p_published: false }],
   ["issue_upload", { p_device: id() }],
   [
     "admin_edit_nominee",

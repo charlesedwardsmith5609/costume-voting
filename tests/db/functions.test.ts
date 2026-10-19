@@ -625,15 +625,21 @@ describe("set_timer", () => {
     expect(await rpc<boolean>("voting_is_open")).toBe(true);
   });
 
-  it("rejects a close time in the past, more than 600 minutes ahead, or given with a duration", async () => {
+  it("rejects a close time in the past or given with a duration", async () => {
     const before = await getSettings();
     const at = (min: number) => new Date(Date.now() + min * 60000).toISOString();
     const start = (args: Record<string, unknown>) =>
       rpc<TimerResult>("set_timer", { p_action: "start", ...args }).then((r) => r.status);
     expect(await start({ p_closes_at: at(-1) })).toBe("invalid");
-    expect(await start({ p_closes_at: at(601) })).toBe("invalid");
     expect(await start({ p_closes_at: at(60), p_minutes: 30 })).toBe("invalid");
     expect(await getSettings()).toEqual(before);
+  });
+
+  it("accepts a close time more than 10 hours ahead (no upper limit)", async () => {
+    const closesAt = new Date(Date.now() + 20 * 3600_000).toISOString();
+    const res = await rpc<TimerResult>("set_timer", { p_action: "start", p_closes_at: closesAt });
+    expect(res.status).toBe("ok");
+    expect(Date.parse(res.voting_closes_at!)).toBe(Date.parse(closesAt));
   });
 
   it("rejects bad actions and durations without changing settings", async () => {
@@ -655,6 +661,54 @@ describe("guest_state", () => {
     expect((Date.parse(open.voting_closes_at!) - Date.parse(open.now)) / 60000).toBeCloseTo(30, 1);
     await closeVoting();
     expect((await rpc<State>("guest_state")).status).toBe("closed");
+  });
+});
+
+describe("set_results_published", () => {
+  type State = { status: string; results_published: boolean };
+  const publish = (p_published: boolean) =>
+    rpc<{ status: string }>("set_results_published", { p_published }).then((r) => r.status);
+  const published = async () => (await rpc<State>("guest_state")).results_published;
+
+  it("publishes only after voting has closed", async () => {
+    expect(await publish(true)).toBe("not_closed");
+    await openVoting(30);
+    expect(await publish(true)).toBe("not_closed");
+    expect(await published()).toBe(false);
+    await closeVoting();
+    expect(await publish(true)).toBe("ok");
+    expect(await published()).toBe(true);
+  });
+
+  it("unpublishes at any time", async () => {
+    await openVoting(30);
+    await closeVoting();
+    await publish(true);
+    expect(await publish(false)).toBe("ok");
+    expect(await published()).toBe(false);
+  });
+
+  it("reopening voting by extend or start unpublishes, and ending again does not republish", async () => {
+    for (const reopen of [
+      { p_action: "extend", p_minutes: 5 },
+      { p_action: "start", p_minutes: 30 },
+    ]) {
+      await openVoting(30);
+      await closeVoting();
+      await publish(true);
+      expect((await rpc<TimerResult>("set_timer", reopen)).status).toBe("ok");
+      expect(await published()).toBe(false);
+      await rpc("set_timer", { p_action: "end" });
+      expect(await published()).toBe(false);
+    }
+  });
+
+  it("is not published after reset", async () => {
+    await openVoting(30);
+    await closeVoting();
+    await publish(true);
+    await resetDb();
+    expect(await published()).toBe(false);
   });
 });
 

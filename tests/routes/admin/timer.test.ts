@@ -33,14 +33,17 @@ describe("POST /api/admin/timer", () => {
     expect(await isOpen()).toBe(true);
   });
 
-  it("rejects close times without an offset, in the past, too far ahead, or with minutes", async () => {
+  it("accepts a close time more than 10 hours ahead", async () => {
+    expect((await timer({ action: "start", closesAt: pacific(20 * 60) })).status).toBe(200);
+  });
+
+  it("rejects close times without an offset, in the past, or with minutes", async () => {
     const before = await getSettings();
     const noOffset = new Date(Date.now() + 3600_000).toISOString().replace("Z", "");
     for (const body of [
       { action: "start", closesAt: noOffset },
       { action: "start", closesAt: "10:30 PM" },
       { action: "start", closesAt: pacific(-5) },
-      { action: "start", closesAt: pacific(601) },
       { action: "start", closesAt: pacific(60), minutes: 30 },
       { action: "start" },
       { action: "start", minutes: 0 },
