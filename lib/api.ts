@@ -2,7 +2,7 @@
 // become ApiError with the route's error code, or "network" when the request never completed.
 import type { CategorySlug } from "./categories";
 import { guestFetch } from "./deviceId";
-import type { GuestNominee, GuestState } from "./types";
+import type { GuestCategoryResult, GuestNominee, GuestState } from "./types";
 
 export class ApiError extends Error {
   constructor(public code: string) {
@@ -49,6 +49,11 @@ export function fetchNominees(category: CategorySlug, queries: string[] = []): P
 // Every non-hidden nominee, newest first, for the "Nominate a costume" picker.
 export async function fetchAllNominees(): Promise<GuestNominee[]> {
   return (await request<{ nominees: GuestNominee[] }>("/api/nominees")).nominees;
+}
+
+// 403 not_published until the host publishes results.
+export async function fetchResults(): Promise<GuestCategoryResult[]> {
+  return (await request<{ categories: GuestCategoryResult[] }>("/api/results")).categories;
 }
 
 export async function fetchMyVotes(): Promise<Partial<Record<CategorySlug, string>>> {

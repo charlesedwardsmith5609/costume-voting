@@ -22,3 +22,19 @@ export type GuestState = {
   resultsPublished: boolean;
   serverNow: string;
 };
+
+// Published results for guests (/api/results): per category, nominees with votes in rank order
+// (ties share a rank) and the rest as also nominated. Never vote counts.
+export type GuestResultNominee = {
+  id: string;
+  personName: string | null;
+  costumeName: string | null;
+  photoUrl: string;
+  thumbUrl: string;
+};
+export type GuestCategoryResult = {
+  category: CategorySlug;
+  label: string;
+  ranked: (GuestResultNominee & { rank: number })[];
+  alsoNominated: GuestResultNominee[];
+};

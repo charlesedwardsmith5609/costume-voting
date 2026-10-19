@@ -11,7 +11,8 @@ export type StatusView =
   // now is the server time, to tell whether the close is on another day.
   | { kind: "open_until"; closesAt: Date; now: Date }
   | { kind: "countdown"; msLeft: number }
-  | { kind: "closed" };
+  // published: the host has published results (guests can see the winners).
+  | { kind: "closed"; published: boolean };
 
 // How far the server clock is ahead of the phone's, measured at the request midpoint.
 export function clockOffset(serverNow: string, sentAt: number, receivedAt: number): number {
@@ -25,7 +26,7 @@ export function statusView(state: GuestState | null, nowMs: number): StatusView 
   const closes = state.votingClosesAt ? Date.parse(state.votingClosesAt) : null;
   if (opens === null || closes === null || nowMs < opens) return { kind: "opens_soon" };
   const msLeft = closes - nowMs;
-  if (msLeft <= 0) return { kind: "closed" };
+  if (msLeft <= 0) return { kind: "closed", published: state.resultsPublished };
   if (msLeft <= COUNTDOWN_MS) return { kind: "countdown", msLeft };
   return { kind: "open_until", closesAt: new Date(closes), now: new Date(nowMs) };
 }

@@ -31,14 +31,16 @@ describe("statusView", () => {
   });
 
   it("is closed at the close time, like voting_is_open()", () => {
-    expect(statusView(open, CLOSES)).toEqual({ kind: "closed" });
-    expect(statusView(open, CLOSES + 60_000)).toEqual({ kind: "closed" });
+    expect(statusView(open, CLOSES)).toEqual({ kind: "closed", published: false });
+    expect(statusView(open, CLOSES + 60_000)).toEqual({ kind: "closed", published: false });
+    expect(statusView({ ...open, resultsPublished: true }, CLOSES)).toEqual({ kind: "closed", published: true });
   });
 
   it("only allows writes while open", () => {
     expect(canWrite({ kind: "open_until", closesAt: new Date(CLOSES), now: new Date(OPENS) })).toBe(true);
     expect(canWrite({ kind: "countdown", msLeft: 5 })).toBe(true);
-    for (const kind of ["loading", "opens_soon", "closed"] as const) expect(canWrite({ kind })).toBe(false);
+    for (const kind of ["loading", "opens_soon"] as const) expect(canWrite({ kind })).toBe(false);
+    expect(canWrite({ kind: "closed", published: false })).toBe(false);
   });
 });
 

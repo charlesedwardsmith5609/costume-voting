@@ -33,13 +33,15 @@ export function StatusBanner({ view, failed, onRetry }: { view: StatusView; fail
       : view.kind === "opens_soon"
         ? "Voting opens soon"
         : view.kind === "closed"
-          ? "Voting is closed"
+          ? view.published
+            ? "Voting is closed. The winners are in!"
+            : "Votes are in! Stand by for the winners to be announced."
           : `Voting open until ${formatCloseTime(view.closesAt, view.now)}`;
   const colors =
     view.kind === "closed" ? "border-zinc-600 bg-zinc-800 text-zinc-200" : "border-witch/50 bg-violet-950 text-violet-100";
   return (
     <p role="status" className={`${STRIP} border-b font-semibold ${colors}`}>
-      🕒 {text}
+      {view.kind === "closed" ? (view.published ? "🏆" : "🎃") : "🕒"} {text}
     </p>
   );
 }

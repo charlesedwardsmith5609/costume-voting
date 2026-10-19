@@ -13,6 +13,7 @@ const files = (dir: string) =>
 const CLIENT = [
   "app/page.tsx",
   "app/help/page.tsx",
+  "app/results/page.tsx",
   ...files("app/c"),
   ...files("app/nominate"),
   ...files("components").filter((f) => !f.startsWith("components/admin/")),

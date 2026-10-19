@@ -2,6 +2,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import { singleLine } from "@/lib/nomineeLabel";
+import type { GuestCategoryResult, GuestResultNominee } from "@/lib/types";
 import { thumbPath } from "./supabase";
 
 export type ResultNomineeRow = {
@@ -136,20 +137,6 @@ export function toCsv(results: Results, toUrl: (path: string) => string): string
 // What guests see once results are published: per category, nominees with at least one vote
 // in rank order (ties share a rank), then everyone else as "also nominated" by label. Never
 // vote counts; hidden nominees are left out entirely.
-export type GuestResultNominee = {
-  id: string;
-  personName: string | null;
-  costumeName: string | null;
-  photoUrl: string;
-  thumbUrl: string;
-};
-export type GuestCategoryResult = {
-  category: CategorySlug;
-  label: string;
-  ranked: (GuestResultNominee & { rank: number })[];
-  alsoNominated: GuestResultNominee[];
-};
-
 export function buildGuestResults(results: Results, toUrl: (path: string) => string): { categories: GuestCategoryResult[] } {
   const guest = (e: ResultEntry): GuestResultNominee => ({
     id: e.id,
