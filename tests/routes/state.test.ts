@@ -10,7 +10,7 @@ describe("GET /api/state", () => {
   it("reports not_started before the host starts voting", async () => {
     const { status, body } = await call(GET());
     expect(status).toBe(200);
-    expect(body).toMatchObject({ status: "not_started", votingOpensAt: null, votingClosesAt: null });
+    expect(body).toMatchObject({ status: "not_started", votingOpensAt: null, votingClosesAt: null, resultsPublished: false });
     expect(Number.isNaN(Date.parse(body.serverNow))).toBe(false);
   });
 

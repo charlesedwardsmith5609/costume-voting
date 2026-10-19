@@ -18,5 +18,7 @@ export type GuestState = {
   status: VotingStatus;
   votingOpensAt: string | null;
   votingClosesAt: string | null;
+  // Results are visible to guests (published by the host, and voting is closed).
+  resultsPublished: boolean;
   serverNow: string;
 };

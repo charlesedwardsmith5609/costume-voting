@@ -13,12 +13,14 @@ const STATUS: Record<string, number> = {
   unauthorized: 401,
   wrong_password: 401,
   closed: 403,
+  not_published: 403,
   not_found: 404,
   invalid_nominee: 404,
   already_in_category: 409,
   no_change: 409,
   last_category: 409,
   not_started: 409,
+  not_closed: 409,
   rate_limited: 429,
 };
 
@@ -34,12 +36,14 @@ const MESSAGE: Record<string, string> = {
   unauthorized: "Admin login required",
   wrong_password: "Wrong password",
   closed: "Voting is not open",
+  not_published: "Results have not been published",
   not_found: "Nominee not found",
   invalid_nominee: "Nominee is not in this category",
   already_in_category: "Already in this category",
   no_change: "Nothing changed",
   last_category: "A nominee needs at least one category; hide or delete it instead",
   not_started: "Voting has not been started",
+  not_closed: "Results can be published only after voting closes",
   rate_limited: "Too many requests; try again in a few minutes",
 };
 

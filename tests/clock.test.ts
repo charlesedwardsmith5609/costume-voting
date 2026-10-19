@@ -8,6 +8,7 @@ const state = (opens: number | null, closes: number | null): GuestState => ({
   status: "open",
   votingOpensAt: opens === null ? null : new Date(opens).toISOString(),
   votingClosesAt: closes === null ? null : new Date(closes).toISOString(),
+  resultsPublished: false,
   serverNow: new Date(OPENS).toISOString(),
 });
 const open = state(OPENS, CLOSES);

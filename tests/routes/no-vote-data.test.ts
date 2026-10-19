@@ -1,4 +1,5 @@
-// SPEC: guests never see vote counts, rankings, or other devices' votes. Seeds votes from
+// SPEC: guests never see vote counts or other devices' votes, and see rankings only once the host
+// publishes results (/api/results: rank order, never counts). Seeds votes from
 // several devices, calls every guest route, and checks each response's full shape against an
 // allowlist. The only vote data allowed is /api/my-votes for the calling device. No response may
 // contain any device ID, since a device ID is all it takes to read or change that device's votes.
@@ -9,10 +10,11 @@ import { POST as edit } from "@/app/api/edit/route";
 import { GET as myVotes } from "@/app/api/my-votes/route";
 import { POST as nominate } from "@/app/api/nominate/route";
 import { GET as nominees } from "@/app/api/nominees/route";
+import { GET as guestResults } from "@/app/api/results/route";
 import { GET as state } from "@/app/api/state/route";
 import { POST as uploadUrl } from "@/app/api/upload-url/route";
 import { POST as vote } from "@/app/api/vote/route";
-import { createNominee, newDevice, openVoting, resetDb, rpc, uploadPhoto } from "../db/helpers";
+import { closeVoting, createNominee, newDevice, openVoting, resetDb, rpc, uploadPhoto } from "../db/helpers";
 import { call, get, post } from "./request";
 
 // Every leaf path in a JSON value: arrays become [], and keys under a dynamic map become *.
@@ -29,7 +31,7 @@ const NOMINEE = ["id", "personName", "costumeName", "categories[]", "photoUrl", 
 const nomineeAt = (prefix: string) => NOMINEE.map((f) => `${prefix}[].${f}`);
 const ERROR = ["error", "message"];
 const ALLOWED: Record<string, string[]> = {
-  state: ["status", "votingOpensAt", "votingClosesAt", "serverNow"],
+  state: ["status", "votingOpensAt", "votingClosesAt", "resultsPublished", "serverNow"],
   nominees: [
     ...nomineeAt("nominees"),
     ...nomineeAt("strips.here"),
@@ -43,6 +45,12 @@ const ALLOWED: Record<string, string[]> = {
   nominate: ["id"],
   addToCategory: ["ok"],
   edit: ["ok"],
+  results: [
+    "categories[].category",
+    "categories[].label",
+    ...["id", "personName", "costumeName", "photoUrl", "thumbUrl", "rank"].map((f) => `categories[].ranked[].${f}`),
+    ...["id", "personName", "costumeName", "photoUrl", "thumbUrl"].map((f) => `categories[].alsoNominated[].${f}`),
+  ],
 };
 const VOTE_WORDS = /vote|count|rank|tally|score|total|winner|result/i;
 
@@ -61,7 +69,15 @@ function expectShape(route: string, body: unknown, allowed: string[], maps: stri
   expect(paths.length, `${route} returned nothing`).toBeGreaterThan(0);
   for (const p of paths) expect([...allowed, ...ERROR], `${route}: unexpected field ${p}`).toContain(p);
   if (route !== "myVotes") {
-    for (const p of paths) expect(p, `${route}: vote-like field ${p}`).not.toMatch(VOTE_WORDS);
+    // Published results may carry a rank (and a "ranked" list), and the state says whether results
+    // are published (a boolean); nothing else vote-like.
+    const vetted = (p: string) =>
+      route === "results"
+        ? p.replace(/^categories\[\]\.ranked\[\]\.(rank$)?/, "")
+        : route === "state" && p === "resultsPublished"
+          ? ""
+          : p;
+    for (const p of paths) expect(vetted(p), `${route}: vote-like field ${p}`).not.toMatch(VOTE_WORDS);
   }
 }
 
@@ -135,5 +151,18 @@ describe("guest responses contain no vote data", () => {
     }
     // Both success and rejection bodies were inspected.
     expect(statuses).toEqual([200, 404, 200, 201, 400, 200, 409, 200, 409]);
+  });
+
+  // Last: closes voting.
+  it("GET /api/results: 403 until published, then rank order and labels only", async () => {
+    expect(await call(guestResults())).toMatchObject({ status: 403, body: { error: "not_published" } });
+    await closeVoting();
+    expect((await call(guestResults())).status).toBe(403);
+    await rpc("set_results_published", { p_published: true });
+    const { status, body } = await call(guestResults());
+    expect(status).toBe(200);
+    expectShape("results", body, ALLOWED.results);
+    const funniest = body.categories.find((c: { category: string }) => c.category === "funniest");
+    expect(funniest.ranked[0]).toMatchObject({ id: ben, rank: 1 });
   });
 });

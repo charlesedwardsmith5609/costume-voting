@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildResults, CSV_HEADER, type ResultNomineeRow, toCsv, type VoteRow } from "@/lib/server/results";
+import { buildGuestResults, buildResults, CSV_HEADER, type ResultNomineeRow, toCsv, type VoteRow } from "@/lib/server/results";
 
 let seq = 0;
 function nominee(person: string | null, cats: string[], hidden = false, costume: string | null = null): ResultNomineeRow {
@@ -90,5 +90,26 @@ describe("toCsv", () => {
       const m = nominee(`${lead}1`, ["funniest"]);
       expect(toCsv(buildResults([m], []), url).split("\r\n")[1]).toContain(`,'${lead}1,'${lead}1,`);
     }
+  });
+});
+
+describe("buildGuestResults", () => {
+  it("ranks nominees with votes, lists zero-vote ones by label, drops hidden ones and every count", () => {
+    const [a, b, c, d, h] = [
+      nominee("Bo", ["funniest"]),
+      nominee("Al", ["funniest"]),
+      nominee("Zed", ["funniest"]),
+      nominee(null, ["funniest"], false, "Alien"),
+      nominee("Hal", ["funniest"], true),
+    ];
+    const r = buildResults([a, b, c, d, h], [...votes(a, "funniest", 2), ...votes(b, "funniest", 2), ...votes(h, "funniest", 5)]);
+    const funniest = buildGuestResults(r, (p) => `https://cdn/${p}`).categories.find((x) => x.category === "funniest")!;
+    expect(funniest.ranked.map((n) => [n.personName, n.rank])).toEqual([
+      ["Al", 1],
+      ["Bo", 1],
+    ]);
+    expect(funniest.alsoNominated.map((n) => n.costumeName ?? n.personName)).toEqual(["Alien", "Zed"]);
+    expect(funniest.ranked[0].thumbUrl).toBe(`https://cdn/${b.photo_path.replace(/\.jpg$/, ".thumb.jpg")}`);
+    expect(JSON.stringify(funniest)).not.toMatch(/votes|Hal/);
   });
 });
