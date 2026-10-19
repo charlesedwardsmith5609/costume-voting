@@ -203,6 +203,7 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
     { p_device: id(), p_categories: ["funniest"], p_person_name: "x", p_costume_name: null, p_photo_path: "x.jpg" },
   ],
   ["add_nominee_to_category", { p_device: id(), p_nominee: id(), p_category: "funniest" }],
+  ["add_nominee_to_categories", { p_device: id(), p_nominee: id(), p_categories: ["funniest"] }],
   [
     "edit_nominee",
     { p_device: id(), p_nominee: id(), p_person_name: "x", p_costume_name: null, p_photo_path: null, p_add_categories: [] },

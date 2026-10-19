@@ -12,9 +12,31 @@ beforeEach(async () => {
 const list = (query: string) => call(GET(get(`/api/nominees?${query}`)));
 
 describe("GET /api/nominees", () => {
-  it("rejects a missing or unknown category", async () => {
-    expect((await list("")).status).toBe(400);
+  it("rejects an unknown or empty category", async () => {
     expect((await list("category=scariest")).body.error).toBe("invalid_category");
+    expect((await list("category=")).status).toBe(400);
+  });
+
+  it("without a category, lists every non-hidden nominee newest first, with its categories", async () => {
+    const a = await createNominee(newDevice(), "funniest", "Ana");
+    const b = await createNominee(newDevice(), ["most_unique", "best_couples"], "Ben");
+    const hidden = await createNominee(newDevice(), "most_elaborate", "Hal");
+    await admin.from("nominees").update({ hidden: true }).eq("id", hidden);
+
+    const { status, body } = await list("");
+    expect(status).toBe(200);
+    expect(Object.keys(body)).toEqual(["nominees"]);
+    expect(body.nominees.map((n: { id: string }) => n.id)).toEqual([b, a]);
+    expect(body.nominees[0].categories).toEqual(["most_unique", "best_couples"]);
+    expect(body.nominees[0].thumbUrl).toMatch(/\.thumb\.jpg$/);
+  });
+
+  it("without a category, orders by creation, not by when a category was last added", async () => {
+    const device = newDevice();
+    const old = await createNominee(device, "most_unique", "Old");
+    const recent = await createNominee(device, "funniest", "New");
+    await rpc("add_nominee_to_categories", { p_device: device, p_nominee: old, p_categories: ["funniest"] });
+    expect((await list("")).body.nominees.map((n: { id: string }) => n.id)).toEqual([recent, old]);
   });
 
   it("lists non-hidden nominees in the category, newest first, with public photo URLs", async () => {

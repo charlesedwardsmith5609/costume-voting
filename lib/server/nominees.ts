@@ -48,6 +48,12 @@ function toGuest(r: NomineeRow, toUrl: (path: string) => string): GuestNominee {
   };
 }
 
+// Every non-hidden nominee, newest created first, for the "Nominate a costume" picker.
+export function buildAllNominees(rows: NomineeRow[], toUrl: (path: string) => string): { nominees: GuestNominee[] } {
+  const sorted = [...rows].sort((a, b) => newestFirst([a.created_at, a.id], [b.created_at, b.id]));
+  return { nominees: sorted.map((r) => toGuest(r, toUrl)) };
+}
+
 // Builds the category list (newest added to this category first), the two "Already
 // nominated?" strips, and, when queries are given, name matches in and outside the category.
 // Queries shorter than MIN_QUERY_LENGTH are ignored; photo-only nominees never match.
@@ -85,3 +91,6 @@ export function nomineeLists(client: SupabaseClient, rows: NomineeRow[], categor
   return buildNomineeLists(rows, category, queries, (path) => photoUrl(client, path));
 }
 
+export function allNominees(client: SupabaseClient, rows: NomineeRow[]) {
+  return buildAllNominees(rows, (path) => photoUrl(client, path));
+}

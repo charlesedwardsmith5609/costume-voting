@@ -254,6 +254,55 @@ describe("create_nominee", () => {
   });
 });
 
+describe("add_nominee_to_categories", () => {
+  const addMany = (device: string, nominee: string, categories: string[]) =>
+    rpc<Status>("add_nominee_to_categories", { p_device: device, p_nominee: nominee, p_categories: categories });
+
+  it("adds every new category in one logged edit and keeps the names", async () => {
+    await openVoting();
+    const n = await createNominee(newDevice(), "funniest", "Sam", "The Mad Hatter");
+    const guest = newDevice();
+    expect((await addMany(guest, n, ["most_unique", "funniest", "best_couples"])).status).toBe("ok");
+    expect(await categoriesOf(n)).toEqual(["best_couples", "funniest", "most_unique"]);
+    const edits = await editsOf(n);
+    expect(edits).toHaveLength(1);
+    expect(edits[0]).toMatchObject({ device_id: guest, added_categories: ["best_couples", "most_unique"], removed_categories: [] });
+    expect(await getNominee(n)).toMatchObject({ person_name: "Sam", costume_name: "The Mad Hatter" });
+  });
+
+  it("adds nothing when any category is invalid, and reports empty, already present, unknown, and hidden", async () => {
+    await openVoting();
+    const n = await createNominee(newDevice(), "funniest");
+    const guest = newDevice();
+    expect((await addMany(guest, n, ["most_unique", "scariest"])).status).toBe("invalid_category");
+    expect((await addMany(guest, n, [])).status).toBe("invalid_category");
+    expect((await addMany(guest, n, ["funniest"])).status).toBe("already_in_category");
+    expect((await addMany(guest, newDevice(), ["funniest"])).status).toBe("not_found");
+    await admin.from("nominees").update({ hidden: true }).eq("id", n);
+    expect((await addMany(guest, n, ["most_unique"])).status).toBe("not_found");
+    expect(await categoriesOf(n)).toEqual(["funniest"]);
+    expect(await countRows("nominee_edits")).toBe(0);
+  });
+
+  it("is rejected outside the voting window", async () => {
+    const n = await seedNominee(["funniest"]);
+    expect((await addMany(newDevice(), n, ["most_unique"])).status).toBe("closed");
+    await openVoting();
+    await closeVoting();
+    expect((await addMany(newDevice(), n, ["most_unique", "best_couples"])).status).toBe("closed");
+    expect(await categoriesOf(n)).toEqual(["funniest"]);
+  });
+
+  it("is one hit on the shared edit limit", async () => {
+    await openVoting();
+    const device = newDevice();
+    const n = await createNominee(newDevice(), "funniest");
+    await fillRateLimit(device, "edit", 9);
+    expect((await addMany(device, n, ["most_unique", "best_couples"])).status).toBe("ok");
+    expect((await edit(device, n, { person: "Sam" })).status).toBe("rate_limited");
+  });
+});
+
 describe("add_nominee_to_category", () => {
   it("adds an existing nominee to another category and logs it", async () => {
     await openVoting();

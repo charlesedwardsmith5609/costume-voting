@@ -99,6 +99,13 @@ describe("guest responses contain no vote data", () => {
     expect(body.strips.here.map((n: { id: string }) => n.id)).toEqual([cy, ben, ana]);
   });
 
+  it("GET /api/nominees without a category, newest first, not by votes", async () => {
+    const { status, body } = await call(nominees(get("/api/nominees", { device: me })));
+    expect(status).toBe(200);
+    expectShape("nominees", body, nomineeAt("nominees"));
+    expect(body.nominees.map((n: { id: string }) => n.id)).toEqual([cy, ben, ana]);
+  });
+
   it("GET /api/my-votes returns only this device's own picks", async () => {
     const { body } = await call(myVotes(get("/api/my-votes", { device: me })));
     expectShape("myVotes", body, ALLOWED.myVotes, ["votes"]);
@@ -115,8 +122,8 @@ describe("guest responses contain no vote data", () => {
       ["uploadUrl", () => uploadUrl(post("/api/upload-url", { device: me }))],
       ["nominate", () => nominate(post("/api/nominate", { device: me, body: { categories: ["funniest"], photoPath } }))],
       ["nominate", () => nominate(post("/api/nominate", { device: me, body: { categories: [] } }))],
-      ["addToCategory", () => addToCategory(post("/api/add-to-category", { device: me, body: { nomineeId: cy, category: "best_couples" } }))],
-      ["addToCategory", () => addToCategory(post("/api/add-to-category", { device: me, body: { nomineeId: cy, category: "best_couples" } }))],
+      ["addToCategory", () => addToCategory(post("/api/add-to-category", { device: me, body: { nomineeId: cy, categories: ["best_couples"] } }))],
+      ["addToCategory", () => addToCategory(post("/api/add-to-category", { device: me, body: { nomineeId: cy, categories: ["best_couples"] } }))],
       ["edit", () => edit(post("/api/edit", { device: me, body: { nomineeId: ben, personName: "Benji", costumeName: "Wizard" } }))],
       ["edit", () => edit(post("/api/edit", { device: me, body: { nomineeId: ben, personName: "Benji", costumeName: "Wizard" } }))],
     ];
