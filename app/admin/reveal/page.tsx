@@ -1,21 +1,32 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
-import { Photo } from "@/components/Photo";
+import { Celebration, RevealStage } from "@/components/admin/RevealStage";
+import { RevealScenery } from "@/components/admin/RevealScenery";
 import { SECONDARY } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { adminErrorMessage, fetchAdminResults, type AdminCategoryResult } from "@/lib/adminApi";
-import { labelLines, singleLine } from "@/lib/nomineeLabel";
+import { winnersOf } from "@/lib/reveal";
+import { createRevealAudio, type RevealAudio } from "@/lib/revealSound";
 
-// Full-screen winner reveal for a TV or the host's phone: one category at a time, every tied
-// winner shown together. Loaded when opened (reload for fresh tallies). Arrow keys also step.
-// Owner: votes, nominees, nominee_categories (read only).
+const DRUMROLL_S = 2.2;
+
+// Full-screen winner reveal for a TV (16:9) or the host's phone: one category at a time, each
+// hidden behind a "?" card until tapped. Tied winners flip together. Winners are loaded when the
+// page opens (reload for fresh tallies). The first tap unlocks sound. Space/Enter reveal and
+// the arrow keys step. Owner: votes, nominees, nominee_categories (read only).
 export default function AdminRevealPage() {
   const { expired } = useAdmin();
   const [categories, setCategories] = useState<AdminCategoryResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [rolling, setRolling] = useState(false);
+  const audio = useRef<RevealAudio | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     fetchAdminResults()
@@ -27,71 +38,130 @@ export default function AdminRevealPage() {
       });
   }, [expired]);
 
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      audio.current?.stop();
+    },
+    [],
+  );
+
   const count = categories?.length ?? 0;
+  const current = categories?.[index];
+  const winners = current ? winnersOf(current.nominees) : [];
+  const isRevealed = revealed.has(index);
+
+  const reveal = useCallback(() => {
+    if (!current || rolling || revealed.has(index)) return;
+    const finish = () => {
+      setRolling(false);
+      setRevealed((s) => new Set(s).add(index));
+      if (winnersOf(current.nominees).length) audio.current?.fanfare();
+    };
+    if (!winnersOf(current.nominees).length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return finish();
+    setRolling(true);
+    audio.current?.drumroll(DRUMROLL_S);
+    timer.current = setTimeout(finish, (DRUMROLL_S + 0.1) * 1000);
+  }, [current, index, revealed, rolling]);
+
+  const step = useCallback(
+    (to: number) => {
+      if (!rolling) setIndex(Math.min(Math.max(to, 0), count - 1));
+    },
+    [rolling, count],
+  );
+
   useEffect(() => {
+    if (!started) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") setIndex((i) => Math.min(i + 1, count - 1));
-      if (e.key === "ArrowLeft") setIndex((i) => Math.max(i - 1, 0));
+      if (e.key === "ArrowRight") step(index + 1);
+      else if (e.key === "ArrowLeft") step(index - 1);
+      else if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        reveal();
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [count]);
+  }, [started, index, step, reveal]);
 
-  const current = categories?.[index];
-  const winners = current?.nominees.filter((n) => n.rank === 1 && n.votes > 0) ?? [];
-  const tie = winners.length > 1;
+  function begin() {
+    audio.current = createRevealAudio();
+    audio.current?.start();
+    setStarted(true);
+  }
+
+  function toggleMute() {
+    audio.current?.setMuted(!muted);
+    setMuted(!muted);
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-night p-4 text-center">
-      <div className="flex justify-between">
-        <Link href="/admin/results" className="inline-flex min-h-11 items-center text-violet-300">
-          ← Exit
-        </Link>
-        {categories && (
-          <span className="inline-flex min-h-11 items-center text-violet-300">
-            {index + 1} of {count}
-          </span>
-        )}
-      </div>
+    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden text-center text-violet-50">
+      <RevealScenery />
+      <header className="relative px-4 pt-[2vh]">
+        <h1 className="font-title text-[6vh] leading-none text-pumpkin drop-shadow-[0_0_2vh_rgba(255,122,26,.6)]">
+          The Charlies&apos; Halloween Party 2026
+        </h1>
+        <p className="mt-[1vh] text-[3vh] font-semibold tracking-wide text-violet-100">Costume Contest Winners</p>
+      </header>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
-        {!categories && <p className="text-2xl">{error ?? "Loading…"}</p>}
-        {current && (
-          <>
-            <h1 className="font-title text-5xl text-pumpkin sm:text-7xl">{current.label}</h1>
-            {tie && <p className="text-3xl font-semibold">It&apos;s a tie!</p>}
-            {winners.length === 0 && <p className="text-3xl">No votes in this category</p>}
-            <ul className="flex min-h-0 flex-wrap items-start justify-center gap-6">
-              {winners.map((n) => {
-                const { top, bottom } = labelLines(n);
-                return (
-                  <li key={n.id} className="space-y-2">
-                    <div
-                      className={`mx-auto overflow-hidden rounded-3xl ring-4 ring-pumpkin ${
-                        tie ? "w-[min(34vh,44vw)]" : "w-[min(50vh,88vw)]"
-                      }`}
-                    >
-                      <Photo thumbUrl={n.thumbUrl} photoUrl={n.photoUrl} alt={singleLine(n)} />
-                    </div>
-                    <p className="text-3xl font-bold sm:text-5xl">🏆 {top}</p>
-                    {bottom && <p className="text-2xl text-violet-200 sm:text-3xl">{bottom}</p>}
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-      </div>
-
-      {categories && (
-        <div className="grid grid-cols-2 gap-3">
-          <button type="button" disabled={index === 0} onClick={() => setIndex(index - 1)} className={SECONDARY}>
-            ← Previous
-          </button>
-          <button type="button" disabled={index >= count - 1} onClick={() => setIndex(index + 1)} className={SECONDARY}>
-            Next →
-          </button>
+      {!started ? (
+        <div className="relative flex flex-1 flex-col items-center justify-center gap-[3vh]">
+          {!categories && <p className="text-[3vh]">{error ?? "Loading…"}</p>}
+          {categories && (
+            <button
+              type="button"
+              onClick={begin}
+              className="rv-pulse rounded-[3vh] bg-pumpkin px-[6vh] py-[3vh] text-[5vh] font-extrabold text-night"
+            >
+              Tap to start 🎃
+            </button>
+          )}
+          <Link href="/admin/tools" className="text-violet-200 underline underline-offset-4">
+            ← Exit
+          </Link>
         </div>
+      ) : (
+        <>
+          <main className="relative grid min-h-0 flex-1 grid-rows-[auto_1fr] items-center gap-[2vh] px-[3vw] pt-[2vh] lg:grid-cols-[1fr_1.8fr] lg:grid-rows-1">
+            {current && (
+              <div className="space-y-[3vh]">
+                <h2 className="font-title text-[8vh] leading-none text-white drop-shadow-[0_0_2vh_rgba(139,92,246,.9)]">
+                  {current.label}
+                </h2>
+                <p className="flex justify-center gap-[1.5vh]" aria-label={`Category ${index + 1} of ${count}`}>
+                  {categories!.map((c, i) => (
+                    <span
+                      key={c.category}
+                      className={`size-[2vh] rounded-full ${i === index ? "bg-pumpkin" : revealed.has(i) ? "bg-witch" : "bg-white/25"}`}
+                    />
+                  ))}
+                </p>
+              </div>
+            )}
+            <div className="relative h-full min-h-0">
+              {current && (
+                <RevealStage key={index} winners={winners} revealed={isRevealed} rolling={rolling} onReveal={reveal} />
+              )}
+            </div>
+          </main>
+          {isRevealed && winners.length > 0 && <Celebration key={index} />}
+          <footer className="relative grid grid-cols-[auto_1fr_1fr_auto] items-center gap-3 px-4 py-3 opacity-60 transition-opacity hover:opacity-100">
+            <Link href="/admin/tools" className="inline-flex min-h-11 items-center px-2 text-violet-200">
+              ← Exit
+            </Link>
+            <button type="button" disabled={index === 0 || rolling} onClick={() => step(index - 1)} className={SECONDARY}>
+              ← Previous
+            </button>
+            <button type="button" disabled={index >= count - 1 || rolling} onClick={() => step(index + 1)} className={SECONDARY}>
+              Next →
+            </button>
+            <button type="button" onClick={toggleMute} aria-pressed={muted} className="min-h-11 px-2 text-2xl">
+              {muted ? "🔇" : "🔊"}
+            </button>
+          </footer>
+        </>
       )}
     </div>
   );
