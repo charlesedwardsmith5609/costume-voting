@@ -2,7 +2,7 @@
 // Client hooks for guest screens. Shared state stays in Postgres; these only cache the latest
 // server answers in React state for the current page.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, fetchState, issueUpload } from "./api";
+import { ApiError, fetchState, issueUpload, type IssuedUpload } from "./api";
 import { clockOffset, statusView, type StatusView } from "./clock";
 import { checkPicked, preparePhoto, type PreparedPhoto } from "./photo";
 import { ALREADY_SAVED, FlowError, newProgress, runPhotoFlow, type FlowProgress, type Stage } from "./photoFlow";
@@ -72,8 +72,9 @@ function stageText(stage: Stage, fraction = 0): string {
 type Job = { prepared: Promise<PreparedPhoto>; progress: FlowProgress };
 
 // A picked photo and the save that uses it. Compression starts as soon as a photo is picked.
-// The photo, the upload, and the error survive a failure, so "Try again" resumes.
-export function usePhotoSave() {
+// The photo, the upload, and the error survive a failure, so "Try again" resumes. issue gets the
+// signed upload URLs; admin pages pass their own (host/ paths, no voting window).
+export function usePhotoSave(issue: () => Promise<IssuedUpload> = issueUpload) {
   const [preview, setPreview] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function usePhotoSave() {
       }
       return await runPhotoFlow(current.progress, {
         prepare: () => current.prepared,
-        issue: issueUpload,
+        issue,
         put: putFile,
         save,
         onStage: (s, f) => setStage(stageText(s, f)),
@@ -118,7 +119,7 @@ export function usePhotoSave() {
     } finally {
       setStage(null);
     }
-  }, []);
+  }, [issue]);
 
   return { hasPhoto: preview !== null, preview, pickError, stage, error, pick, run };
 }

@@ -1,7 +1,7 @@
 // Browser client for the admin API routes. The session is the HttpOnly cookie set by login, so
 // requests carry no credentials of their own. Errors become ApiError with the route's error code
 // ("unauthorized" when the session is missing or expired), or "network".
-import { ApiError } from "./api";
+import { ApiError, type IssuedUpload, type NameFields } from "./api";
 import type { CategorySlug } from "./categories";
 
 export async function adminRequest<T>(path: string, body?: unknown): Promise<T> {
@@ -44,6 +44,10 @@ const MESSAGES: Record<string, string> = {
   not_started: "Voting hasn't been started yet.",
   not_closed: "Results can be published only after voting closes.",
   not_found: "That nominee no longer exists.",
+  last_category: "A nominee needs at least one category. Hide or delete it instead.",
+  invalid_name: "Names can be up to 60 characters.",
+  invalid_photo: "Photo upload failed. Try again.",
+  upload_failed: "Photo upload failed. Try again.",
 };
 
 export function adminErrorMessage(code: string): string {
@@ -88,3 +92,8 @@ export type AdminNominee = {
 export const fetchAdminNominees = () => adminRequest<{ nominees: AdminNominee[] }>("/api/admin/nominees");
 export const setHidden = (nomineeId: string, hidden: boolean) => adminRequest("/api/admin/hide", { nomineeId, hidden });
 export const deleteNominee = (nomineeId: string) => adminRequest("/api/admin/delete", { nomineeId });
+export const adminUploadUrl = () => adminRequest<IssuedUpload>("/api/admin/upload-url", {});
+export const adminEditNominee = (body: NameFields & { nomineeId: string; photoPath?: string }) =>
+  adminRequest("/api/admin/edit", body);
+export const setCategory = (nomineeId: string, category: CategorySlug, present: boolean) =>
+  adminRequest("/api/admin/set-category", { nomineeId, category, present });
