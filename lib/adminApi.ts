@@ -43,6 +43,7 @@ const MESSAGES: Record<string, string> = {
   invalid_timer: "That closing time or duration isn't valid. Pick a time in the future.",
   not_started: "Voting hasn't been started yet.",
   not_closed: "Results can be published only after voting closes.",
+  not_found: "That nominee no longer exists.",
 };
 
 export function adminErrorMessage(code: string): string {
@@ -72,3 +73,18 @@ export type AdminResultNominee = {
 export type AdminCategoryResult = { category: CategorySlug; label: string; totalVotes: number; nominees: AdminResultNominee[] };
 export type AdminResults = { distinctDevices: number; categories: AdminCategoryResult[] };
 export const fetchAdminResults = () => adminRequest<AdminResults>("/api/admin/results");
+
+// Every nominee, hidden ones included, newest first (/api/admin/nominees).
+export type AdminNominee = {
+  id: string;
+  personName: string | null;
+  costumeName: string | null;
+  photoUrl: string;
+  thumbUrl: string;
+  hidden: boolean;
+  createdAt: string;
+  categories: CategorySlug[];
+};
+export const fetchAdminNominees = () => adminRequest<{ nominees: AdminNominee[] }>("/api/admin/nominees");
+export const setHidden = (nomineeId: string, hidden: boolean) => adminRequest("/api/admin/hide", { nomineeId, hidden });
+export const deleteNominee = (nomineeId: string) => adminRequest("/api/admin/delete", { nomineeId });
