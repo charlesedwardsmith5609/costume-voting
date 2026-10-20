@@ -2,6 +2,7 @@
 // requests carry no credentials of their own. Errors become ApiError with the route's error code
 // ("unauthorized" when the session is missing or expired), or "network".
 import { ApiError } from "./api";
+import type { CategorySlug } from "./categories";
 
 export async function adminRequest<T>(path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -55,3 +56,19 @@ export const extendTimer = (minutes: number) => adminRequest<TimerResult>("/api/
 export const setPublished = (published: boolean) =>
   adminRequest<{ resultsPublished: boolean }>("/api/admin/publish", { published });
 export const endVoting = () => adminRequest<TimerResult>("/api/admin/timer", { action: "end" });
+
+// Live results for the host (/api/admin/results): non-hidden nominees per category with vote
+// counts and dense ranks, total votes per category, and distinct voting devices overall.
+export type AdminResultNominee = {
+  id: string;
+  personName: string | null;
+  costumeName: string | null;
+  label: string;
+  votes: number;
+  rank: number;
+  photoUrl: string;
+  thumbUrl: string;
+};
+export type AdminCategoryResult = { category: CategorySlug; label: string; totalVotes: number; nominees: AdminResultNominee[] };
+export type AdminResults = { distinctDevices: number; categories: AdminCategoryResult[] };
+export const fetchAdminResults = () => adminRequest<AdminResults>("/api/admin/results");
