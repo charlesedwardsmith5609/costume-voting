@@ -43,7 +43,7 @@ export function NomineeCard({ nominee, selected, voted, onSelect, editHref }: Pr
         <div className="flex flex-col px-1">
           {mystery && (
             <Link href={editHref} className={`${LINK} text-sm`}>
-              Know who this is? Add their name
+              Is this you? Or know who it is? Add details
             </Link>
           )}
           <Link href={editHref} className={`${LINK} text-sm`}>

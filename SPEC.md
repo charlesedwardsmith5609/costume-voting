@@ -98,7 +98,7 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 - Both names: "Sam as The Mad Hatter". On cards, two lines: person name on top, costume name below in smaller text.
 - Person only: "Sam".
 - Costume only: "The Mad Hatter".
-- Photo only: "Mystery guest 👻", and the card shows a "Know who this is? Add their name" link to the edit screen.
+- Photo only: "Mystery guest 👻", and the card shows a "Is this you? Or know who it is? Add details" link to the edit screen.
 - Single-line contexts (admin results, CSV display label, winner reveal) use the "Sam as The Mad Hatter" form.
 
 ### Device identity
@@ -231,7 +231,7 @@ Write automated tests where practical (server route tests for voting and timer r
 17. A guest edits a nominee's names and photo: the card updates, the admin edit history shows the old and new values, and "Undo this edit" restores them, including the photo. The undo appears in the history and can itself be undone.
 18. After voting closes, a guest edit is rejected by the server; a host edit still works.
 19. The anon (publishable) key cannot call any database function, including `edit_nominee`, or read or write any table; the service role (secret) key can do all of these.
-20. A photo-only nominee shows "Mystery guest 👻" with a "Know who this is? Add their name" link; a nominee with both names shows two lines on the card and "Sam as The Mad Hatter" in single-line contexts.
+20. A photo-only nominee shows "Mystery guest 👻" with a "Is this you? Or know who it is? Add details" link; a nominee with both names shows two lines on the card and "Sam as The Mad Hatter" in single-line contexts.
 21. The CSV export has one row per nominee per category with the listed columns; tied nominees share a rank (1, 1, 2), and hidden nominees are at the bottom with an empty rank.
 22. From the home screen, "Nominate a costume" lists every non-hidden nominee with its categories, and the search box filters it by name. Tapping one and checking two more categories adds both (one entry in the edit history) with no photo or names, and it appears in each. "Not here? Add someone new" requires at least one category and adds a new nominee. Both paths return to the home screen. Manual check on each test phone.
 
