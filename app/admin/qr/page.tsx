@@ -5,6 +5,9 @@ import { ADMIN_PAGE } from "@/components/admin/ui";
 import { SECONDARY } from "@/components/ui";
 import { CATEGORIES } from "@/lib/categories";
 
+// Guests can't reach a localhost address, so it is shown in red.
+const isLocal = (url: string) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(url);
+
 // Printable QR code for the guest URL (this site's address). Black on white at a large size so
 // it scans from across a room; the nav is hidden when printing.
 export default function AdminQrPage() {
@@ -28,7 +31,11 @@ export default function AdminQrPage() {
       ) : (
         <p className="my-8 text-lg">{failed ? "Couldn't make the QR code. Reload the page." : "Making the QR code…"}</p>
       )}
-      {url && <p className="mb-4 break-all text-lg text-violet-200 print:text-black">{url}</p>}
+      {url && (
+        <p className={`mb-4 break-all text-lg ${isLocal(url) ? "font-bold text-red-400 print:text-red-600" : "text-violet-200 print:text-black"}`}>
+          {url}
+        </p>
+      )}
       <ul className="mb-6 space-y-1 text-2xl font-semibold">
         {CATEGORIES.map((c) => (
           <li key={c.slug}>{c.label}</li>
