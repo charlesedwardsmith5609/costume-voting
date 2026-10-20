@@ -3,20 +3,31 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { CategoryToggles } from "@/components/admin/CategoryToggles";
+import { EditHistory } from "@/components/admin/EditHistory";
 import { NomineeDetailsForm } from "@/components/admin/NomineeDetailsForm";
 import { ADMIN_PAGE } from "@/components/admin/ui";
 import { BackLink } from "@/components/BackLink";
 import { ApiError } from "@/lib/api";
-import { adminErrorMessage, fetchAdminNominees, setCategory, type AdminNominee } from "@/lib/adminApi";
+import {
+  adminErrorMessage,
+  fetchAdminNominees,
+  fetchEdits,
+  setCategory,
+  undoEdit,
+  type AdminNominee,
+  type NomineeEdit,
+} from "@/lib/adminApi";
 import type { CategorySlug } from "@/lib/categories";
 import { singleLine } from "@/lib/nomineeLabel";
 
 // One nominee: edit names and photo, and add or remove categories. Read from the admin nominee
-// list (there is no single-nominee route). Owner: admin_edit_nominee, admin_set_category.
+// list (there is no single-nominee route). Owner: admin_edit_nominee, admin_set_category,
+// undo_nominee_edit.
 export default function AdminNomineePage() {
   const { id } = useParams<{ id: string }>();
   const { expired } = useAdmin();
   const [nominee, setNominee] = useState<AdminNominee | "missing" | null>(null);
+  const [edits, setEdits] = useState<NomineeEdit[] | null>(null);
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -34,8 +45,11 @@ export default function AdminNomineePage() {
 
   const load = useCallback(
     () =>
-      fetchAdminNominees()
-        .then((r) => setNominee(r.nominees.find((n) => n.id === id) ?? "missing"))
+      Promise.all([fetchAdminNominees(), fetchEdits(id)])
+        .then(([r, h]) => {
+          setNominee(r.nominees.find((n) => n.id === id) ?? "missing");
+          setEdits(h.edits);
+        })
         .catch(fail),
     [id, fail],
   );
@@ -50,6 +64,21 @@ export default function AdminNomineePage() {
     setSaved(false);
     try {
       await setCategory(id, category, present);
+    } catch (err) {
+      fail(err);
+    } finally {
+      await load();
+      setBusy(false);
+    }
+  }
+
+  async function undo(editId: number) {
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await undoEdit(editId);
+      setVersion((v) => v + 1);
     } catch (err) {
       fail(err);
     } finally {
@@ -100,6 +129,10 @@ export default function AdminNomineePage() {
                 </p>
               )}
               <CategoryToggles categories={nominee.categories} disabled={busy} onToggle={toggle} />
+            </section>
+            <section className="space-y-3">
+              <h2 className="text-2xl font-bold">Edit history</h2>
+              {edits && <EditHistory edits={edits} disabled={busy} onUndo={undo} />}
             </section>
           </div>
         </>

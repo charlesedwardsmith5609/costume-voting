@@ -3,6 +3,7 @@
 // ("unauthorized" when the session is missing or expired), or "network".
 import { ApiError, type IssuedUpload, type NameFields } from "./api";
 import type { CategorySlug } from "./categories";
+import type { NomineeEdit } from "./editHistory";
 
 export async function adminRequest<T>(path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -48,6 +49,7 @@ const MESSAGES: Record<string, string> = {
   invalid_name: "Names can be up to 60 characters.",
   invalid_photo: "Photo upload failed. Try again.",
   upload_failed: "Photo upload failed. Try again.",
+  no_change: "Nothing to undo. Those values are already restored.",
 };
 
 export function adminErrorMessage(code: string): string {
@@ -97,3 +99,9 @@ export const adminEditNominee = (body: NameFields & { nomineeId: string; photoPa
   adminRequest("/api/admin/edit", body);
 export const setCategory = (nomineeId: string, category: CategorySlug, present: boolean) =>
   adminRequest("/api/admin/set-category", { nomineeId, category, present });
+
+// Edit history for one nominee, newest first (/api/admin/edits).
+export type { NomineeEdit };
+export const fetchEdits = (nomineeId: string) =>
+  adminRequest<{ edits: NomineeEdit[] }>(`/api/admin/edits?nomineeId=${encodeURIComponent(nomineeId)}`);
+export const undoEdit = (editId: number) => adminRequest("/api/admin/undo", { editId });
