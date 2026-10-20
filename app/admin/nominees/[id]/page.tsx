@@ -1,9 +1,10 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { CategoryToggles } from "@/components/admin/CategoryToggles";
 import { EditHistory } from "@/components/admin/EditHistory";
+import { MergePanel } from "@/components/admin/MergePanel";
 import { NomineeDetailsForm } from "@/components/admin/NomineeDetailsForm";
 import { ADMIN_PAGE } from "@/components/admin/ui";
 import { BackLink } from "@/components/BackLink";
@@ -12,6 +13,7 @@ import {
   adminErrorMessage,
   fetchAdminNominees,
   fetchEdits,
+  mergeNominees,
   setCategory,
   undoEdit,
   type AdminNominee,
@@ -22,11 +24,13 @@ import { singleLine } from "@/lib/nomineeLabel";
 
 // One nominee: edit names and photo, and add or remove categories. Read from the admin nominee
 // list (there is no single-nominee route). Owner: admin_edit_nominee, admin_set_category,
-// undo_nominee_edit.
+// undo_nominee_edit, merge_nominees.
 export default function AdminNomineePage() {
   const { id } = useParams<{ id: string }>();
   const { expired } = useAdmin();
+  const router = useRouter();
   const [nominee, setNominee] = useState<AdminNominee | "missing" | null>(null);
+  const [all, setAll] = useState<AdminNominee[]>([]);
   const [edits, setEdits] = useState<NomineeEdit[] | null>(null);
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -47,6 +51,7 @@ export default function AdminNomineePage() {
     () =>
       Promise.all([fetchAdminNominees(), fetchEdits(id)])
         .then(([r, h]) => {
+          setAll(r.nominees);
           setNominee(r.nominees.find((n) => n.id === id) ?? "missing");
           setEdits(h.edits);
         })
@@ -85,6 +90,23 @@ export default function AdminNomineePage() {
       await load();
       setBusy(false);
     }
+  }
+
+  async function merge(keepId: string, dropId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await mergeNominees(keepId, dropId);
+      if (keepId !== id) {
+        setBusy(false);
+        return router.replace(`/admin/nominees/${keepId}`);
+      }
+    } catch (err) {
+      fail(err);
+    }
+    await load();
+    setVersion((v) => v + 1);
+    setBusy(false);
   }
 
   return (
@@ -129,6 +151,10 @@ export default function AdminNomineePage() {
                 </p>
               )}
               <CategoryToggles categories={nominee.categories} disabled={busy} onToggle={toggle} />
+            </section>
+            <section className="space-y-3">
+              <h2 className="text-2xl font-bold">Merge duplicate</h2>
+              <MergePanel key={version} current={nominee} others={all.filter((n) => n.id !== id)} disabled={busy} onMerge={merge} />
             </section>
             <section className="space-y-3">
               <h2 className="text-2xl font-bold">Edit history</h2>

@@ -45,6 +45,7 @@ const MESSAGES: Record<string, string> = {
   not_started: "Voting hasn't been started yet.",
   not_closed: "Results can be published only after voting closes.",
   not_found: "That nominee no longer exists.",
+  same_nominee: "Pick a different nominee.",
   last_category: "A nominee needs at least one category. Hide or delete it instead.",
   invalid_name: "Names can be up to 60 characters.",
   invalid_photo: "Photo upload failed. Try again.",
@@ -105,3 +106,4 @@ export type { NomineeEdit };
 export const fetchEdits = (nomineeId: string) =>
   adminRequest<{ edits: NomineeEdit[] }>(`/api/admin/edits?nomineeId=${encodeURIComponent(nomineeId)}`);
 export const undoEdit = (editId: number) => adminRequest("/api/admin/undo", { editId });
+export const mergeNominees = (keepId: string, dropId: string) => adminRequest("/api/admin/merge", { keepId, dropId });
