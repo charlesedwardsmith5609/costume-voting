@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { ADMIN_PAGE } from "@/components/admin/ui";
@@ -34,6 +35,14 @@ export default function AdminToolsPage() {
     <main className={ADMIN_PAGE}>
       <h1 className="mb-4 font-title text-4xl text-pumpkin">Tools</h1>
       <div className="space-y-8">
+        <section className="space-y-3">
+          <h2 className="text-2xl font-bold">Winner reveal</h2>
+          <p className="text-lg">A full-screen view of the winners, one category at a time, for a TV or your phone.</p>
+          <Link href="/admin/reveal" className={`${PRIMARY} w-full`}>
+            Open winner reveal
+          </Link>
+        </section>
+
         <section className="space-y-3">
           <h2 className="text-2xl font-bold">Export results</h2>
           <p className="text-lg">A CSV of every nominee in every category, with ranks and vote counts.</p>
