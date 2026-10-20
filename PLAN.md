@@ -12,7 +12,7 @@ Product spec: `SPEC.md`. Updated at the end of each milestone.
 | M2 | Guest API routes plus tests: time window, vote changes, hidden or wrong-category nominee, rate limits, no vote data in responses | Mon 10/19 | Done (`81c7c4a`) |
 | M3 | Admin auth and routes plus tests: every route returns 401 without the cookie; merge and reset; start by close time | Mon 10/19 | Done (`bd543ec`) |
 | M4 | Guest UI: home (open-until time, last-15-minute countdown and banner), category grid, add nominee with compression and retry, dark theme at 360 px | Tue 10/20 | In review: code and tests written, check passes |
-| M5 | Admin UI (close-time picker as the default, preset to 10:00 PM on Sat 10/24), reveal view (ties, zero votes), QR page and PNG | Wed 10/21 | Not started |
+| M5 | Admin UI (close-time picker as the default, preset to 10:00 PM on Sat 10/24), reveal view (ties, zero votes), QR page and PNG | Wed 10/21 | In review: code and tests written, check passes |
 | M6 | README, party-night runbook, Vercel deploy; host provides Vercel account, env vars, and domain | Thu 10/22 | Not started |
 | — | Host testing on real phones (one iPhone with Safari, one Android with Chrome) | Fri 10/23 | — |
 
@@ -34,6 +34,11 @@ M4 is in review: home, category, add, and edit screens, with photo thumbnails. P
 tests; layout, camera, and EXIF need the phone checks. Scope addition: "Nominate a costume"
 on the home screen (`/nominate`, `/nominate/[id]`, `/nominate/new`), the unfiltered nominee list,
 and migration 0004 (`add_nominee_to_categories`).
+
+M5 is in review: admin timer (with publish), live results, nominee list and detail (names, photo,
+categories, edit history with undo, merge), Tools (CSV export, guarded reset), QR page (print and
+PNG), and a full-screen winner reveal at `/admin/reveal`. Reset and merge are not undoable.
+Migration 0005 (publishing) goes on the M6 production list with the others.
 
 Manual testing: `npm run dev:test` runs the dev server against the test project (see
 `scripts/dev-test.sh`); don't run the check at the same time, since it resets that project.

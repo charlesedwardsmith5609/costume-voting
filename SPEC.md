@@ -110,8 +110,9 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 ## Host (admin) experience
 
 - Route: `/admin`, protected by a password from an environment variable (`ADMIN_PASSWORD`). Use an httpOnly session cookie after login. Every admin API route checks it on the server. The session lasts 12 hours. Login is limited to 10 attempts per IP address per 10 minutes.
-- **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future and at most 10 hours ahead.
+- **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future; there is no upper limit. The home banner shows the close time while voting is open.
 - **Live results:** per category, nominees ranked by vote count with photo thumbnails, auto-refreshing every few seconds (or Supabase Realtime). Show total votes per category and number of distinct voting devices.
+- **Publishing results:** after voting closes, the host publishes the results. Until then guests see "Votes are in! Stand by for the winners to be announced."; once published they see each category's winners (every tied winner) and the full rankings, never vote counts. Reopening voting unpublishes. Owner: `set_results_published`.
 - **Winner reveal view:** a full-screen view showing the winner of each category with their photo, one at a time, for announcing on a TV or the host's phone. Handle ties by showing all tied nominees.
 - **Nominee moderation:**
   - Hide or delete a nominee. Hiding removes it from every category.
