@@ -5,7 +5,7 @@ import "./globals.css";
 const creepster = Creepster({ weight: "400", subsets: ["latin"], variable: "--font-creepster" });
 
 export const metadata: Metadata = {
-  title: "The Charlies Costume Contest 2026",
+  title: "The Charlies' Costume Contest 2026",
   description: "Vote for your favorite costumes!",
 };
 
