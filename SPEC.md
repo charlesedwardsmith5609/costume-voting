@@ -118,6 +118,7 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
   - Sound: looping background music that fades out and pauses for each drumroll (so it resumes where it left off) and returns after the reveal; a mute button. Files live in `public/sounds/` (see `CREDITS.md`) and are not in git; a missing file is skipped.
   - After the last category, a final page: "Congratulations to our winners!" with every category's winner(s). A "Start slideshow" button starts the slideshow; after 5 minutes without a click it starts by itself.
   - **Slideshow:** a full-screen, random, endless loop of photos (slow zoom, fade, and the nominee's name), reshuffled after each pass, until Exit or Escape. It includes every nominee's current photo (hidden nominees too), photos replaced by edits, and uploads no nominee used. A photo that fails to load is skipped. Results are loaded when the page opens.
+  - **Phone remote** (`/admin/remote`): the host runs the whole reveal from a phone while it plays on the TV. One large button does the next step (Reveal winner, Next category, Show all winners, Start slideshow, Stop slideshow), with Previous and Mute below. Before a category is revealed, the phone shows its winner(s) privately. The TV page needs one tap on "Tap to start" first (browsers block sound until a tap); after that the phone controls it, and the phone says so when the TV page isn't connected. Buttons stay locked after a tap until the TV reports a new status (or 4 seconds). The remote never skips a category that hasn't been revealed. Delay is about a second: the phone sends a command, and the TV page polls for it every 0.8 seconds.
   - **Slideshow photos** (`/admin/slideshow`): the host sees every candidate photo with its source (Current, Hidden, Earlier photo, Unused) and can Remove it from, or Restore it to, the slideshow. Removal is by photo, so the nominee stays. Reset clears removals.
 - **Nominee moderation:**
   - Hide or delete a nominee. Hiding removes it from every category.
@@ -188,7 +189,7 @@ create table nominee_edits (
 );
 ```
 
-`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. `slideshow_exclusions` (photo paths the host removed from the slideshow; cleared by `reset_all`) is in `0006_slideshow_exclusions.sql`. Later migrations add and change functions. The migrations are the source of truth.
+`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. `slideshow_exclusions` (photo paths the host removed from the slideshow; cleared by `reset_all`) is in `0006_slideshow_exclusions.sql`. `reveal_remote` (one row: the last remote command and its number, and the status the TV page publishes) and `send_reveal_command` are in `0007_reveal_remote.sql`, which also makes `reset_all` unpublish results and clear the remote. Later migrations add and change functions. The migrations are the source of truth.
 
 - Enable Row Level Security on all tables with **no policies for the anon role**, so the browser cannot read or write tables directly. All access goes through server routes using the service role.
 - The Supabase projects have "Automatically expose new tables" disabled. The migration grants `service_role` select, insert, update, and delete on every table, usage on the `nominee_edits` sequence, and execute on every function. `anon` and `authenticated` get nothing.
@@ -247,6 +248,7 @@ Write automated tests where practical (server route tests for voting and timer r
 26. In the reveal, each category stays hidden until tapped; a tie flips every tied winner; a category with no votes says so; the music pauses during the drumroll and resumes where it stopped; mute silences everything.
 27. After the last category the final page shows every winner and starts the slideshow on the button or after 5 minutes.
 28. The slideshow shows hidden, replaced, and unused photos but never one the host removed; removing and restoring on `/admin/slideshow` takes effect the next time the slideshow starts; admin photo routes return unauthorized without the session cookie.
+29. With the reveal open on the TV, the phone remote reveals each winner, moves on, shows all winners, and starts and stops the slideshow; a command sent before the TV page opened never runs; a second tap before the TV updates does nothing; "next" never skips an unrevealed category; and `/api/admin/reveal-remote` and `/api/admin/reveal-state` return unauthorized without the session cookie.
 
 ## Deliverables
 
