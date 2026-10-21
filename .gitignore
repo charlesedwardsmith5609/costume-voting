@@ -15,3 +15,7 @@ next-env.d.ts
 
 # Editor swap files
 *.swp
+
+# Audio files are licensed for use, not redistribution (see public/sounds/CREDITS.md)
+public/sounds/*.mp3
+*:Zone.Identifier
