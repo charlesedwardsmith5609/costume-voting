@@ -26,6 +26,7 @@ export default function AdminRevealPage() {
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [rolling, setRolling] = useState(false);
   const [slideshow, setSlideshow] = useState(false);
+  const [slideshowUsed, setSlideshowUsed] = useState(false);
   const audio = useRef<RevealAudio | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -78,7 +79,10 @@ export default function AdminRevealPage() {
     if (final) audio.current?.celebrate();
   }, [final]);
 
-  const startSlideshow = useCallback(() => setSlideshow(true), []);
+  const startSlideshow = useCallback(() => {
+    setSlideshow(true);
+    setSlideshowUsed(true);
+  }, []);
   const exitSlideshow = useCallback(() => setSlideshow(false), []);
 
   useEffect(() => {
@@ -142,7 +146,7 @@ export default function AdminRevealPage() {
               final ? "" : "grid-rows-[auto_1fr] lg:grid-cols-[1fr_1.8fr] lg:grid-rows-1"
             }`}
           >
-            {final && categories && <RevealWinners categories={categories} onStartSlideshow={startSlideshow} />}
+            {final && categories && <RevealWinners categories={categories} autoStart={!slideshowUsed} onStartSlideshow={startSlideshow} />}
             {current && (
               <div className="space-y-[3vh]">
                 <h2 className="font-title text-[8vh] leading-none text-white drop-shadow-[0_0_2vh_rgba(139,92,246,.9)]">

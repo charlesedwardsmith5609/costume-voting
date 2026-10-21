@@ -8,12 +8,22 @@ import { winnersOf } from "@/lib/reveal";
 export const SLIDESHOW_AUTO_START_MS = 5 * 60_000;
 
 // Last reveal step: every category's winner(s) at once. The host starts the slideshow with the
-// button; if they don't, it starts by itself after five minutes.
-export function RevealWinners({ categories, onStartSlideshow }: { categories: AdminCategoryResult[]; onStartSlideshow: () => void }) {
+// button; if they don't, it starts by itself after five minutes. autoStart is false once a
+// slideshow has run, so exiting one never reopens it.
+export function RevealWinners({
+  categories,
+  autoStart,
+  onStartSlideshow,
+}: {
+  categories: AdminCategoryResult[];
+  autoStart: boolean;
+  onStartSlideshow: () => void;
+}) {
   useEffect(() => {
+    if (!autoStart) return;
     const t = setTimeout(onStartSlideshow, SLIDESHOW_AUTO_START_MS);
     return () => clearTimeout(t);
-  }, [onStartSlideshow]);
+  }, [autoStart, onStartSlideshow]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-[2vh]">
