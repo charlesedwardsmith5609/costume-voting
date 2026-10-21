@@ -38,15 +38,15 @@ and migration 0004 (`add_nominee_to_categories`).
 M5 is in review: admin timer (with publish), live results, nominee list and detail (names, photo,
 categories, edit history with undo, merge), Tools (CSV export, guarded reset), QR page (print and
 PNG), and a full-screen winner reveal at `/admin/reveal` (tap to reveal, animated scenery, music,
-drumroll, fireworks, applause). Reset and merge are not undoable. Server side of the final
+drumroll, fireworks, applause). Reset and merge are not undoable. Phone remote for the reveal (`/admin/remote`, migration 0007; Reset also unpublishes now). Server side of the final
 slideshow is done: migration 0006, `GET /api/admin/photos`, `POST /api/admin/slideshow-exclude`.
 
 Manual testing: `npm run dev:test` runs the dev server against the test project (see
 `scripts/dev-test.sh`); don't run the check at the same time, since it resets that project.
 
-Before deploy (M6): run `0002` through `0006` (`0002_guest_reads`, `0003_photo_uploads`,
-`0004_add_categories`, `0005_publish_results`, `0006_slideshow_exclusions`) on production. All six
-are already on the test project. The sound files in `public/sounds/` are gitignored (license: not
+Before deploy (M6): run `0002` through `0007` (`0002_guest_reads`, `0003_photo_uploads`,
+`0004_add_categories`, `0005_publish_results`, `0006_slideshow_exclusions`, `0007_reveal_remote`) on
+production. All of them are already on the test project. The sound files in `public/sounds/` are gitignored (license: not
 for redistribution), so they must be copied into the deploy by hand; see `public/sounds/CREDITS.md`.
 
 ## Remaining tasks
@@ -84,18 +84,16 @@ with `bash scripts/check.sh` passing (never while `dev:test` is running) and a s
 5. **[CLAUDE] M5 cross-review.** Goal: `bash scripts/cross-review.sh` on the branch, assess each
    finding, change nothing until the host decides. Security focus: the new admin routes, 0006, and
    public photo URLs for hidden or unused photos (they are public in Storage by design).
-6. **[CLAUDE] Decision: `reset_all` and publishing.** Goal: Reset should also clear
-   `results_published_at`. Files: new `supabase/migrations/0007_reset_unpublish.sql`, a db test.
-   Ask the host before doing this; it adds a migration to the production list.
+6. **[CLAUDE] Done:** Reset also clears `results_published_at` (in `0007_reveal_remote.sql`).
 7. **[CURSOR] M6 docs.** Goal: README and the party-night runbook. Files: `README.md`.
    Accept: setup (env vars, Supabase projects, migrations 0001 to 0006), sound files (not in git),
-   how to start, extend, end, and publish, how to run the reveal and slideshow, and the warning
+   how to start, extend, end, and publish, how to run the reveal and slideshow (including the phone remote at `/admin/remote`: log in on the phone, open the reveal on the TV and tap "Tap to start" there once for sound), and the warning
    "never run Reset while guests are nominating or voting".
 8. **[CLAUDE] M6 deploy review.** Goal: final pre-deploy review of env vars, RLS, bundle secrets,
    and production migrations. The host runs the SQL and the Vercel setup.
 9. Host testing on real phones (iPhone Safari, Android Chrome) and a TV rehearsal of the reveal.
 
-Open review items: no M4 cross-review findings are recorded as open in this file (M2 to M4
+Open review items: the phone remote (0007, routes) has not been cross-reviewed. No M4 cross-review findings are recorded as open in this file (M2 to M4
 findings are all listed above as fixed or accepted). M5 has not been cross-reviewed yet (task 5).
 
 ## Decisions
