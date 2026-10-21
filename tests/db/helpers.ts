@@ -231,4 +231,5 @@ export const TABLES = [
   "nominee_edits",
   "rate_limits",
   "photo_uploads",
+  "slideshow_exclusions",
 ];
