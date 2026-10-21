@@ -44,6 +44,14 @@ export default function AdminToolsPage() {
         </section>
 
         <section className="space-y-3">
+          <h2 className="text-2xl font-bold">Slideshow photos</h2>
+          <p className="text-lg">Choose which photos appear in the final slideshow after the winner reveal.</p>
+          <Link href="/admin/slideshow" className={`${SECONDARY} w-full`}>
+            Manage slideshow photos
+          </Link>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-2xl font-bold">Export results</h2>
           <p className="text-lg">A CSV of every nominee in every category, with ranks and vote counts.</p>
           <a href="/api/admin/export" download className={`${SECONDARY} w-full`}>

@@ -116,6 +116,9 @@ export default function AdminRevealPage() {
               Tap to start 🎃
             </button>
           )}
+          <Link href="/admin/slideshow" className="text-violet-200 underline underline-offset-4">
+            Manage slideshow photos
+          </Link>
           <Link href="/admin/tools" className="text-violet-200 underline underline-offset-4">
             ← Exit
           </Link>

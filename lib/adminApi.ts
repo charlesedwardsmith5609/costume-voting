@@ -110,3 +110,17 @@ export const undoEdit = (editId: number) => adminRequest("/api/admin/undo", { ed
 export const mergeNominees = (keepId: string, dropId: string) => adminRequest("/api/admin/merge", { keepId, dropId });
 export type ResetResult = { ok: true; photosRemoved: number; photosNotRemoved: number };
 export const resetAll = () => adminRequest<ResetResult>("/api/admin/reset", { confirm: "RESET" });
+
+// Every photo for the final slideshow (/api/admin/photos), including ones the host removed.
+export type SlideshowSource = "current" | "hidden" | "earlier" | "unused";
+export type SlideshowPhoto = {
+  path: string;
+  label: string | null;
+  source: SlideshowSource;
+  excluded: boolean;
+  photoUrl: string;
+  thumbUrl: string;
+};
+export const fetchSlideshowPhotos = () => adminRequest<{ photos: SlideshowPhoto[] }>("/api/admin/photos");
+export const setSlideshowExcluded = (photoPath: string, excluded: boolean) =>
+  adminRequest("/api/admin/slideshow-exclude", { photoPath, excluded });

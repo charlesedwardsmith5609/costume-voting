@@ -57,9 +57,18 @@ export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Pr
   return data as T;
 }
 
+// Also list guest/ and host/ so unused host uploads (not in photo_uploads) are removed. reset_all
+// only returns paths known to the tables.
+async function listPrefix(prefix: string): Promise<string[]> {
+  const { data, error } = await admin.storage.from(BUCKET).list(prefix, { limit: 1000 });
+  if (error) throw new Error(`list ${prefix}: ${error.message}`);
+  return (data ?? []).filter((f) => f.name.endsWith(".jpg")).map((f) => `${prefix}/${f.name}`);
+}
+
 export async function resetDb(): Promise<void> {
   const paths = await rpc<string[]>("reset_all");
-  const all = paths.flatMap((p) => [p, p.replace(/\.jpg$/, ".thumb.jpg")]);
+  const listed = (await Promise.all([listPrefix("guest"), listPrefix("host")])).flat();
+  const all = [...new Set([...paths.flatMap((p) => [p, p.replace(/\.jpg$/, ".thumb.jpg")]), ...listed])];
   for (let i = 0; i < all.length; i += 100) await admin.storage.from(BUCKET).remove(all.slice(i, i + 100));
 }
 
