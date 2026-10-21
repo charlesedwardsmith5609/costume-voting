@@ -51,7 +51,8 @@ host's phone (`/admin/remote`). There is also a printable QR page and a CSV expo
 Music and sound effects come from Pixabay (Pixabay Content License) and BigSoundBank (CC0); see
 `public/sounds/CREDITS.md`. The files are licensed for use, not redistribution, so they are not in
 this repository. Without them the reveal still works (the drumroll falls back to synthesized
-sound; the music, fireworks, and applause are skipped). No license has been chosen for this code.
+sound; the music, fireworks, and applause are skipped). The code is released under the MIT License
+(`LICENSE`); the sound files are not covered by it.
 
 ## Setup
 
