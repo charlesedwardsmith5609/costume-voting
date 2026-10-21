@@ -4,6 +4,55 @@ Mobile web app for a Halloween house party: guests scan a QR code, nominate cost
 
 Requires **Node.js 22+** (`package.json` engines).
 
+## Overview
+
+**Guests** scan a QR code, nominate costumes with a photo (compressed on the phone), and vote in
+four categories (Most Elaborate, Most Unique, Funniest, Best Couples Costume). Voting is anonymous:
+one vote per device per category, changeable until the host closes voting. Guests never see counts.
+
+**The host** (`/admin`, password protected) starts and ends voting, sees live results, hides,
+edits, merges, or deletes nominees (with an edit history and undo), publishes the winners, and runs
+a full-screen winner reveal for a TV: tap-to-reveal cards, drumroll, fireworks, applause, a
+"Congratulations" page, and a random photo slideshow of the evening. The reveal can be run from the
+host's phone (`/admin/remote`). There is also a printable QR page and a CSV export.
+
+### How it is built
+
+- **Next.js App Router + TypeScript**, Tailwind v4, deployed on Vercel. Dependencies are kept
+  minimal (`@supabase/supabase-js`, `browser-image-compression`, `qrcode`; tests use Vitest).
+- **Postgres owns all shared state** (Supabase). Every multi-step write (vote, nominate, edit, merge,
+  reset, timer) is a single SQL function using the database clock, so nothing relies on
+  in-memory state in serverless functions. Rate limits are a table.
+- **The browser never talks to the database.** Row Level Security is on with no policies for the
+  anon key; every write goes through a route handler using the service role key. Admin routes check
+  a signed, HttpOnly session cookie on every request. Tests prove the anon key cannot call any
+  function or read any table, and that every admin route returns 401 without the cookie.
+- **Photos** upload straight to a public Storage bucket through server-issued signed URLs with
+  unguessable paths; a thumbnail is uploaded next to each photo.
+- **The phone remote** works through one shared database row: the phone sends commands, the TV page
+  polls for them and publishes its status. No websockets.
+- **Sound** is played with the Web Audio API from four files in `public/sounds/` (not in git).
+
+### Where things are
+
+| Path | What |
+|---|---|
+| `app/` | Pages and API routes (`app/api` guest routes, `app/api/admin` host routes) |
+| `components/`, `components/admin/` | Guest and host UI |
+| `lib/` | Shared client code; `lib/server/` is server-only (service role key lives here) |
+| `supabase/migrations/` | The schema and SQL functions, run in order (source of truth) |
+| `tests/` | Unit tests, route tests, and database tests against a separate test project |
+| `scripts/` | `check.sh` (the validation gate), `dev-test.sh`, `cross-review.sh` |
+| `SPEC.md`, `PLAN.md` | The product spec, and the milestone plan with every design decision |
+| `CLAUDE.md`, `AGENTS.md` | The working agreements used to build this with AI pair programmers |
+
+### Credits and licenses
+
+Music and sound effects come from Pixabay (Pixabay Content License) and BigSoundBank (CC0); see
+`public/sounds/CREDITS.md`. The files are licensed for use, not redistribution, so they are not in
+this repository. Without them the reveal still works (the drumroll falls back to synthesized
+sound; the music, fireworks, and applause are skipped). No license has been chosen for this code.
+
 ## Setup
 
 ### Supabase

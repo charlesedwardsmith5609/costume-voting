@@ -11,10 +11,10 @@ Product spec: `SPEC.md`. Updated at the end of each milestone.
 | M1 | SQL migration plus tests of the SQL functions; host creates Supabase projects and env vars | Sun 10/18 | Done (`b2e50f2`, `d1a9588`) |
 | M2 | Guest API routes plus tests: time window, vote changes, hidden or wrong-category nominee, rate limits, no vote data in responses | Mon 10/19 | Done (`81c7c4a`) |
 | M3 | Admin auth and routes plus tests: every route returns 401 without the cookie; merge and reset; start by close time | Mon 10/19 | Done (`bd543ec`) |
-| M4 | Guest UI: home (open-until time, last-15-minute countdown and banner), category grid, add nominee with compression and retry, dark theme at 360 px | Tue 10/20 | In review: code and tests written, check passes |
-| M5 | Admin UI (close-time picker as the default, preset to 10:00 PM on Sat 10/24), reveal view (ties, zero votes), QR page and PNG | Wed 10/21 | In review: code and tests written, check passes |
-| M6 | README, party-night runbook, Vercel deploy; host provides Vercel account, env vars, and domain | Thu 10/22 | Not started |
-| — | Host testing on real phones (one iPhone with Safari, one Android with Chrome) | Fri 10/23 | — |
+| M4 | Guest UI: home (open-until time, last-15-minute countdown and banner), category grid, add nominee with compression and retry, dark theme at 360 px | Tue 10/20 | Done (`f337087`, merged with M5) |
+| M5 | Admin UI (close-time picker as the default, preset to 10:00 PM on Sat 10/24), reveal view (ties, zero votes), QR page and PNG | Wed 10/21 | Done (`f337087`) |
+| M6 | README, party-night runbook, Vercel deploy; host provides Vercel account, env vars, and domain | Thu 10/22 | Done (`13f0a98`); deployed with the Vercel CLI and smoke-tested on production |
+| — | Host testing on real phones (one iPhone with Safari, one Android with Chrome) | Fri 10/23 | Host's rehearsal; production smoke test passed |
 
 ## Current status
 
@@ -29,17 +29,22 @@ CSV export; and reset. A test finds every admin route on disk and checks it retu
 valid session. Cross-review findings (1,000-row read limits) accepted: the party has at most
 100 guests. No migration needed.
 
-M4 is in review: home, category, add, and edit screens, with photo thumbnails. Pure logic
+M4 is done: home, category, add, and edit screens, with photo thumbnails. Pure logic
 (clock and countdown, search, photo checks, the upload and retry steps, error copy) has unit
 tests; layout, camera, and EXIF need the phone checks. Scope addition: "Nominate a costume"
 on the home screen (`/nominate`, `/nominate/[id]`, `/nominate/new`), the unfiltered nominee list,
 and migration 0004 (`add_nominee_to_categories`).
 
-M5 is in review: admin timer (with publish), live results, nominee list and detail (names, photo,
+M5 is done: admin timer (with publish), live results, nominee list and detail (names, photo,
 categories, edit history with undo, merge), Tools (CSV export, guarded reset), QR page (print and
 PNG), and a full-screen winner reveal at `/admin/reveal` (tap to reveal, animated scenery, music,
 drumroll, fireworks, applause). Reset and merge are not undoable. Phone remote for the reveal (`/admin/remote`, migration 0007; Reset also unpublishes now). Server side of the final
 slideshow is done: migration 0006, `GET /api/admin/photos`, `POST /api/admin/slideshow-exclude`.
+
+M6 is done: the README (setup, commands, party-night runbook), migrations 0001 to 0007 on
+production, and a Vercel CLI deploy (`.vercelignore` uploads the gitignored sound files, which are
+licensed for use but not redistribution). Production smoke test passed: nominate, vote, publish,
+reveal, phone remote, slideshow, reset.
 
 Manual testing: `npm run dev:test` runs the dev server against the test project (see
 `scripts/dev-test.sh`); don't run the check at the same time, since it resets that project.
@@ -49,7 +54,10 @@ Before deploy (M6): run `0001` through `0007` (`0001_init`, `0002_guest_reads`, 
 production, in order (production has none of them yet). All of them are already on the test project. The sound files in `public/sounds/` are gitignored (license: not
 for redistribution), so they must be copied into the deploy by hand; see `public/sounds/CREDITS.md`.
 
-## Remaining tasks
+## Remaining tasks (all complete)
+
+Tasks 1 to 4 and 7 were done by a second agent (Cursor) under the handoff rules in `AGENTS.md`;
+5, 6, and 8 were done in the main pairing session. Kept as a record.
 
 Tags: **[CURSOR]** UI, copy, styling, small bug fixes. **[CLAUDE]** RLS, SQL functions, admin auth,
 security, migrations, final pre-deploy review. Do them in this order, one per session. Each ends
@@ -93,8 +101,8 @@ with `bash scripts/check.sh` passing (never while `dev:test` is running) and a s
    and production migrations. The host runs the SQL and the Vercel setup.
 9. Host testing on real phones (iPhone Safari, Android Chrome) and a TV rehearsal of the reveal.
 
-Open review items: the phone remote (0007, routes) has not been cross-reviewed. No M4 cross-review findings are recorded as open in this file (M2 to M4
-findings are all listed above as fixed or accepted). M5 has not been cross-reviewed yet (task 5).
+Open review items: none. The M5 cross-reviews (slideshow routes, phone remote) were assessed and
+the accepted findings fixed. No M4 cross-review findings were open (M2 to M4 findings are listed above as fixed or accepted).
 
 ## Decisions
 
