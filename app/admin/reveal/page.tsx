@@ -10,8 +10,6 @@ import { adminErrorMessage, fetchAdminResults, type AdminCategoryResult } from "
 import { winnersOf } from "@/lib/reveal";
 import { createRevealAudio, type RevealAudio } from "@/lib/revealSound";
 
-const DRUMROLL_S = 2.2;
-
 // Full-screen winner reveal for a TV (16:9) or the host's phone: one category at a time, each
 // hidden behind a "?" card until tapped. Tied winners flip together. Winners are loaded when the
 // page opens (reload for fresh tallies). The first tap unlocks sound. Space/Enter reveal and
@@ -56,12 +54,12 @@ export default function AdminRevealPage() {
     const finish = () => {
       setRolling(false);
       setRevealed((s) => new Set(s).add(index));
-      if (winnersOf(current.nominees).length) audio.current?.fanfare();
+      if (winnersOf(current.nominees).length) audio.current?.celebrate();
     };
     if (!winnersOf(current.nominees).length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return finish();
     setRolling(true);
-    audio.current?.drumroll(DRUMROLL_S);
-    timer.current = setTimeout(finish, (DRUMROLL_S + 0.1) * 1000);
+    audio.current?.drumroll();
+    timer.current = setTimeout(finish, ((audio.current?.drumrollSeconds() ?? 2.2) + 0.1) * 1000);
   }, [current, index, revealed, rolling]);
 
   const step = useCallback(
