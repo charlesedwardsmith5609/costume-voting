@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNomineeLists, type NomineeRow, STRIP_SIZE } from "@/lib/server/nominees";
+import { buildAllNominees, buildNomineeLists, type NomineeRow, STRIP_SIZE } from "@/lib/server/nominees";
 
 let seq = 0;
 // Each row is newer than the last; `cats` maps category to added_at order.
@@ -29,6 +29,7 @@ describe("buildNomineeLists", () => {
       costumeName: null,
       categories: ["funniest", "best_couples"],
       photoUrl: `https://cdn/${rows[2].photo_path}`,
+      thumbUrl: `https://cdn/${rows[2].photo_path.replace(/\.jpg$/, ".thumb.jpg")}`,
     });
     expect(lists.matches).toBeUndefined();
   });
@@ -68,5 +69,18 @@ describe("buildNomineeLists", () => {
 
   it("ignores queries shorter than two characters", () => {
     expect(build([row("Sam", null, ["funniest"])], ["s", " "]).matches).toBeUndefined();
+  });
+});
+
+describe("buildAllNominees", () => {
+  it("lists every nominee in any category, newest created first, with its categories", () => {
+    const a = row("A", null, ["funniest"]);
+    const b = row("B", null, ["best_couples", "most_unique"]);
+    const c = row(null, null, ["most_elaborate"]);
+    a.nominee_categories.push({ category: "most_unique", added_at: new Date(Date.UTC(2026, 9, 25)).toISOString() });
+    const { nominees } = buildAllNominees([a, b, c], (p) => `https://cdn/${p}`);
+    expect(nominees.map((n) => n.id)).toEqual([c.id, b.id, a.id]);
+    expect(nominees[1].categories).toEqual(["most_unique", "best_couples"]);
+    expect(Object.keys(nominees[0]).sort()).toEqual(["categories", "costumeName", "id", "personName", "photoUrl", "thumbUrl"]);
   });
 });

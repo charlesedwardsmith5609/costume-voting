@@ -254,6 +254,55 @@ describe("create_nominee", () => {
   });
 });
 
+describe("add_nominee_to_categories", () => {
+  const addMany = (device: string, nominee: string, categories: string[]) =>
+    rpc<Status>("add_nominee_to_categories", { p_device: device, p_nominee: nominee, p_categories: categories });
+
+  it("adds every new category in one logged edit and keeps the names", async () => {
+    await openVoting();
+    const n = await createNominee(newDevice(), "funniest", "Sam", "The Mad Hatter");
+    const guest = newDevice();
+    expect((await addMany(guest, n, ["most_unique", "funniest", "best_couples"])).status).toBe("ok");
+    expect(await categoriesOf(n)).toEqual(["best_couples", "funniest", "most_unique"]);
+    const edits = await editsOf(n);
+    expect(edits).toHaveLength(1);
+    expect(edits[0]).toMatchObject({ device_id: guest, added_categories: ["best_couples", "most_unique"], removed_categories: [] });
+    expect(await getNominee(n)).toMatchObject({ person_name: "Sam", costume_name: "The Mad Hatter" });
+  });
+
+  it("adds nothing when any category is invalid, and reports empty, already present, unknown, and hidden", async () => {
+    await openVoting();
+    const n = await createNominee(newDevice(), "funniest");
+    const guest = newDevice();
+    expect((await addMany(guest, n, ["most_unique", "scariest"])).status).toBe("invalid_category");
+    expect((await addMany(guest, n, [])).status).toBe("invalid_category");
+    expect((await addMany(guest, n, ["funniest"])).status).toBe("already_in_category");
+    expect((await addMany(guest, newDevice(), ["funniest"])).status).toBe("not_found");
+    await admin.from("nominees").update({ hidden: true }).eq("id", n);
+    expect((await addMany(guest, n, ["most_unique"])).status).toBe("not_found");
+    expect(await categoriesOf(n)).toEqual(["funniest"]);
+    expect(await countRows("nominee_edits")).toBe(0);
+  });
+
+  it("is rejected outside the voting window", async () => {
+    const n = await seedNominee(["funniest"]);
+    expect((await addMany(newDevice(), n, ["most_unique"])).status).toBe("closed");
+    await openVoting();
+    await closeVoting();
+    expect((await addMany(newDevice(), n, ["most_unique", "best_couples"])).status).toBe("closed");
+    expect(await categoriesOf(n)).toEqual(["funniest"]);
+  });
+
+  it("is one hit on the shared edit limit", async () => {
+    await openVoting();
+    const device = newDevice();
+    const n = await createNominee(newDevice(), "funniest");
+    await fillRateLimit(device, "edit", 9);
+    expect((await addMany(device, n, ["most_unique", "best_couples"])).status).toBe("ok");
+    expect((await edit(device, n, { person: "Sam" })).status).toBe("rate_limited");
+  });
+});
+
 describe("add_nominee_to_category", () => {
   it("adds an existing nominee to another category and logs it", async () => {
     await openVoting();
@@ -576,15 +625,21 @@ describe("set_timer", () => {
     expect(await rpc<boolean>("voting_is_open")).toBe(true);
   });
 
-  it("rejects a close time in the past, more than 600 minutes ahead, or given with a duration", async () => {
+  it("rejects a close time in the past or given with a duration", async () => {
     const before = await getSettings();
     const at = (min: number) => new Date(Date.now() + min * 60000).toISOString();
     const start = (args: Record<string, unknown>) =>
       rpc<TimerResult>("set_timer", { p_action: "start", ...args }).then((r) => r.status);
     expect(await start({ p_closes_at: at(-1) })).toBe("invalid");
-    expect(await start({ p_closes_at: at(601) })).toBe("invalid");
     expect(await start({ p_closes_at: at(60), p_minutes: 30 })).toBe("invalid");
     expect(await getSettings()).toEqual(before);
+  });
+
+  it("accepts a close time more than 10 hours ahead (no upper limit)", async () => {
+    const closesAt = new Date(Date.now() + 20 * 3600_000).toISOString();
+    const res = await rpc<TimerResult>("set_timer", { p_action: "start", p_closes_at: closesAt });
+    expect(res.status).toBe("ok");
+    expect(Date.parse(res.voting_closes_at!)).toBe(Date.parse(closesAt));
   });
 
   it("rejects bad actions and durations without changing settings", async () => {
@@ -606,6 +661,54 @@ describe("guest_state", () => {
     expect((Date.parse(open.voting_closes_at!) - Date.parse(open.now)) / 60000).toBeCloseTo(30, 1);
     await closeVoting();
     expect((await rpc<State>("guest_state")).status).toBe("closed");
+  });
+});
+
+describe("set_results_published", () => {
+  type State = { status: string; results_published: boolean };
+  const publish = (p_published: boolean) =>
+    rpc<{ status: string }>("set_results_published", { p_published }).then((r) => r.status);
+  const published = async () => (await rpc<State>("guest_state")).results_published;
+
+  it("publishes only after voting has closed", async () => {
+    expect(await publish(true)).toBe("not_closed");
+    await openVoting(30);
+    expect(await publish(true)).toBe("not_closed");
+    expect(await published()).toBe(false);
+    await closeVoting();
+    expect(await publish(true)).toBe("ok");
+    expect(await published()).toBe(true);
+  });
+
+  it("unpublishes at any time", async () => {
+    await openVoting(30);
+    await closeVoting();
+    await publish(true);
+    expect(await publish(false)).toBe("ok");
+    expect(await published()).toBe(false);
+  });
+
+  it("reopening voting by extend or start unpublishes, and ending again does not republish", async () => {
+    for (const reopen of [
+      { p_action: "extend", p_minutes: 5 },
+      { p_action: "start", p_minutes: 30 },
+    ]) {
+      await openVoting(30);
+      await closeVoting();
+      await publish(true);
+      expect((await rpc<TimerResult>("set_timer", reopen)).status).toBe("ok");
+      expect(await published()).toBe(false);
+      await rpc("set_timer", { p_action: "end" });
+      expect(await published()).toBe(false);
+    }
+  });
+
+  it("is not published after reset", async () => {
+    await openVoting(30);
+    await closeVoting();
+    await publish(true);
+    await resetDb();
+    expect(await published()).toBe(false);
   });
 });
 

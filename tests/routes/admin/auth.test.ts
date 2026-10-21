@@ -54,7 +54,7 @@ beforeEach(resetDb);
 describe("every admin route requires the session cookie", () => {
   it("finds the admin routes", async () => {
     const routes = new Set((await adminHandlers()).map(([r]) => r));
-    expect(routes.size).toBeGreaterThanOrEqual(16);
+    expect(routes.size).toBeGreaterThanOrEqual(21);
     for (const r of ["timer", "results", "reset", "merge", "export"]) expect(routes).toContain(r);
   });
 

@@ -10,7 +10,7 @@ It must be ready and tested on real phones by Friday, October 23.
 
 1. **No sign-in for guests.** No accounts, no email, no app install. Scan and go.
 2. **Mobile first.** Designed for phones in one hand, in a dim room, on spotty Wi-Fi.
-3. **Votes are private.** Guests never see vote counts, rankings, or who voted for whom. Only the host sees results.
+3. **Votes are private.** Guests never see vote counts or who voted for whom. Only the host sees tallies. After the host publishes results, guests see each category's winners and the rank order, never counts.
 4. **Automatic tallying** per category, live on the admin page.
 5. **Voting window.** The host starts voting with a close time (for example 10:30 PM) or a duration. When it closes, voting, nominating, uploads, and guest edits all lock, enforced on the server, not just in the UI.
 6. **Fast nomination.** Adding a nominee takes under 30 seconds: take or pick a photo, optionally type names, choose one or more categories, submit.
@@ -48,7 +48,18 @@ There is one window for everything, and it can stay open all night. Nominating, 
 
 - Party title and a short line: "Vote for your favorite costumes!"
 - Voting status: "Voting opens soon" before the host starts voting; "Voting open until [time]" (for example "Voting open until 10:30 PM") while open; in the last 15 minutes, a live countdown ("Voting closes in 12:34") with a "Voting closes soon!" banner; "Voting is closed" after. The countdown uses the server's clock, corrected for the phone's clock offset.
+- While voting is open, a prominent "Nominate a costume" button above the categories (see "Nominate a costume").
 - Four category tabs or cards. Show a checkmark on categories where this device has already voted.
+
+### Nominate a costume
+
+The home-screen path for nominating, with no category chosen first. Hidden before voting starts and after it closes.
+
+1. "Is this person already here?": a grid of every non-hidden nominee across all categories, newest first, with a name search box. Each card shows the nominee's label and the categories it is already in.
+2. Tapping an existing nominee shows the category checkboxes, with its current categories checked and disabled, to add more. No photo or names are needed. All the chosen categories are added in one edit. Afterward, the guest returns to the home screen.
+3. "Not here? Add someone new" opens the add-a-nominee form with no category pre-checked and without the "Already nominated?" strips (the guest just looked through every nominee). At least one category is required. Afterward, the guest returns to the home screen.
+
+The per-category "+ Add a nominee" path works as described below.
 
 ### Category screen
 
@@ -87,7 +98,7 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 - Both names: "Sam as The Mad Hatter". On cards, two lines: person name on top, costume name below in smaller text.
 - Person only: "Sam".
 - Costume only: "The Mad Hatter".
-- Photo only: "Mystery guest 👻", and the card shows a "Know who this is? Add their name" link to the edit screen.
+- Photo only: "Mystery guest 👻", and the card shows a "Is this you? Or know who it is? Add details" link to the edit screen.
 - Single-line contexts (admin results, CSV display label, winner reveal) use the "Sam as The Mad Hatter" form.
 
 ### Device identity
@@ -99,9 +110,15 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 ## Host (admin) experience
 
 - Route: `/admin`, protected by a password from an environment variable (`ADMIN_PASSWORD`). Use an httpOnly session cookie after login. Every admin API route checks it on the server. The session lasts 12 hours. Login is limited to 10 attempts per IP address per 10 minutes.
-- **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future and at most 10 hours ahead.
+- **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future; there is no upper limit. The home banner shows the close time while voting is open.
 - **Live results:** per category, nominees ranked by vote count with photo thumbnails, auto-refreshing every few seconds (or Supabase Realtime). Show total votes per category and number of distinct voting devices.
-- **Winner reveal view:** a full-screen view showing the winner of each category with their photo, one at a time, for announcing on a TV or the host's phone. Handle ties by showing all tied nominees.
+- **Publishing results:** after voting closes, the host publishes the results. Until then guests see "Votes are in! Stand by for the winners to be announced."; once published they see each category's winners (every tied winner) and the full rankings, never vote counts. Reopening voting unpublishes. Owner: `set_results_published`.
+- **Winner reveal view** (`/admin/reveal`): full screen, laid out for a 16:9 TV and usable on a phone. Title "The Charlies' Halloween Party 2026 / Costume Contest Winners" across the top over an animated night scene (moon, bats, ghosts, pumpkins, spider).
+  - Starts with "Tap to start", which unlocks sound. One category at a time; each shows a "?" card until the host taps it (or presses Space or Enter), then a drumroll, a flip to the winner's photo and name, fireworks, and applause. Tied winners flip together under "It's a tie!"; a category with no votes shows "No votes in this category". Previous/Next and the arrow keys move between categories.
+  - Sound: looping background music that fades out and pauses for each drumroll (so it resumes where it left off) and returns after the reveal; a mute button. Files live in `public/sounds/` (see `CREDITS.md`) and are not in git; a missing file is skipped.
+  - After the last category, a final page: "Congratulations to our winners!" with every category's winner(s). A "Start slideshow" button starts the slideshow; after 5 minutes without a click it starts by itself.
+  - **Slideshow:** a full-screen, random, endless loop of photos (slow zoom, fade, and the nominee's name), reshuffled after each pass, until Exit or Escape. It includes every nominee's current photo (hidden nominees too), photos replaced by edits, and uploads no nominee used. A photo that fails to load is skipped. Results are loaded when the page opens.
+  - **Slideshow photos** (`/admin/slideshow`): the host sees every candidate photo with its source (Current, Hidden, Earlier photo, Unused) and can Remove it from, or Restore it to, the slideshow. Removal is by photo, so the nominee stays. Reset clears removals.
 - **Nominee moderation:**
   - Hide or delete a nominee. Hiding removes it from every category.
   - Edit names and photo at any time, including after voting closes.
@@ -113,7 +130,8 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
   - Hidden nominees are listed at the bottom of each category with an empty rank and hidden = true, so they never look like they placed. Their votes column shows the votes they actually have.
   - Guest-typed text that starts with `=`, `+`, `-`, or `@` gets a leading `'`, so a spreadsheet never runs it as a formula. The file is UTF-8 with a byte order mark so Excel shows emoji correctly.
 - **Delete** removes a nominee with its categories, votes, and edit history. Its photos stay in Storage until Reset.
-- **QR code page:** shows a large, printable QR code for the guest URL with the text "Scan to vote for best costume!" and the categories listed.
+- **QR code page:** shows a large, printable QR code for the guest URL (this site's address; shown in red if it is localhost) with the text "Scan to vote for best costume!" and the categories listed, with Print and Download PNG.
+- **Tools page** (`/admin/tools`): links to the winner reveal and slideshow photos, the CSV download, and Reset.
 - **Reset:** a guarded "clear all votes and nominees" action for testing, requiring the host to type RESET.
 
 ## Data model
@@ -170,18 +188,19 @@ create table nominee_edits (
 );
 ```
 
-`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. Later migrations add and change functions. The migrations are the source of truth.
+`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. `slideshow_exclusions` (photo paths the host removed from the slideshow; cleared by `reset_all`) is in `0006_slideshow_exclusions.sql`. Later migrations add and change functions. The migrations are the source of truth.
 
 - Enable Row Level Security on all tables with **no policies for the anon role**, so the browser cannot read or write tables directly. All access goes through server routes using the service role.
 - The Supabase projects have "Automatically expose new tables" disabled. The migration grants `service_role` select, insert, update, and delete on every table, usage on the `nominee_edits` sequence, and execute on every function. `anon` and `authenticated` get nothing.
-- Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `edit_nominee`, `issue_upload` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
+- Every multi-step write is one Postgres function: `cast_vote`, `create_nominee`, `add_nominee_to_category`, `add_nominee_to_categories` (several categories in one edit), `edit_nominee`, `issue_upload` (guest); `set_timer`, `admin_edit_nominee`, `admin_set_category`, `undo_nominee_edit`, `merge_nominees`, `reset_all` (host).
 - Voting is an upsert on `(device_id, category)`. The server checks that the nominee exists, isn't hidden, is in that category (`nominee_categories`), and that `now()` is between `voting_opens_at` and `voting_closes_at`.
 - Nominating, adding to a category, guest edits, and upload URLs check the same time window. Host edits do not.
 - `set_timer('start')` takes either a duration (`p_minutes`) or an absolute close time (`p_closes_at`); extend and end take minutes or nothing.
 - The request start time counts: window checks use the database clock at the start of the request's transaction. A request that started before voting closed is accepted even if it finishes a few milliseconds after, for example while waiting on a row lock.
 - A new or replacement photo must be an uploaded object that no nominee or edit has used before. A unique index on `nominees.photo_path` backs this up. Guest photos live at `guest/<uuid>.jpg`; the database chooses the path when it issues the upload URL and records the device in `photo_uploads`, and only that device can use it. Host photos live at `host/<uuid>.jpg`. Photo paths and URLs never contain a device ID, because a device ID is enough to read or change that device's votes.
+- Each photo has a small copy next to it, `<path>.thumb.jpg` (600 px, made on the phone and uploaded through a second signed URL issued with the photo's), used in guest grids and strips. Thumbnails are not checked by the server and can never be used as a nominee photo. When one is missing, the UI shows the full photo. Reset removes thumbnails with their photos.
 - Known limitation: a signed upload URL stays valid for 2 hours (fixed by Supabase), so a URL issued just before close can still upload a file after close. That file can never become a nominee or an edit, because nominating and editing check the voting window; it is only an unused file in the bucket, removed by Reset.
-- Public API returns only nominee id, person name, costume name, categories, and photo URL, never vote data. The only vote data a guest can get is their own device's current pick per category.
+- Public API returns only nominee id, person name, costume name, categories, and photo and thumbnail URLs, never vote data. The only vote data a guest can get is their own device's current pick per category.
 
 ## Abuse and safety (keep it light)
 
@@ -193,7 +212,7 @@ create table nominee_edits (
 ## Non-goals
 
 - No user accounts, social login, comments, or sharing.
-- No public leaderboard.
+- No public leaderboard: rankings are visible to guests only after the host publishes, and never with counts.
 - No native app.
 
 ## Acceptance tests
@@ -219,8 +238,15 @@ Write automated tests where practical (server route tests for voting and timer r
 17. A guest edits a nominee's names and photo: the card updates, the admin edit history shows the old and new values, and "Undo this edit" restores them, including the photo. The undo appears in the history and can itself be undone.
 18. After voting closes, a guest edit is rejected by the server; a host edit still works.
 19. The anon (publishable) key cannot call any database function, including `edit_nominee`, or read or write any table; the service role (secret) key can do all of these.
-20. A photo-only nominee shows "Mystery guest 👻" with a "Know who this is? Add their name" link; a nominee with both names shows two lines on the card and "Sam as The Mad Hatter" in single-line contexts.
+20. A photo-only nominee shows "Mystery guest 👻" with a "Is this you? Or know who it is? Add details" link; a nominee with both names shows two lines on the card and "Sam as The Mad Hatter" in single-line contexts.
 21. The CSV export has one row per nominee per category with the listed columns; tied nominees share a rank (1, 1, 2), and hidden nominees are at the bottom with an empty rank.
+22. From the home screen, "Nominate a costume" lists every non-hidden nominee with its categories, and the search box filters it by name. Tapping one and checking two more categories adds both (one entry in the edit history) with no photo or names, and it appears in each. "Not here? Add someone new" requires at least one category and adds a new nominee. Both paths return to the home screen. Manual check on each test phone.
+23. After voting closes the host publishes results: guests see "Votes are in! Stand by for the winners to be announced." until then, and the winners and rank order (never counts) after. Reopening voting unpublishes.
+24. The QR page shows a scannable code for the site address, the heading, and the four categories; the address is red on localhost; Print hides the admin nav.
+25. Reset needs RESET typed exactly, and clears votes, nominees, edits, photos, the timer, and slideshow removals.
+26. In the reveal, each category stays hidden until tapped; a tie flips every tied winner; a category with no votes says so; the music pauses during the drumroll and resumes where it stopped; mute silences everything.
+27. After the last category the final page shows every winner and starts the slideshow on the button or after 5 minutes.
+28. The slideshow shows hidden, replaced, and unused photos but never one the host removed; removing and restoring on `/admin/slideshow` takes effect the next time the slideshow starts; admin photo routes return unauthorized without the session cookie.
 
 ## Deliverables
 

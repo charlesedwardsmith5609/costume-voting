@@ -2,6 +2,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import { singleLine } from "@/lib/nomineeLabel";
+import type { GuestCategoryResult, GuestResultNominee } from "@/lib/types";
+import { thumbPath } from "./supabase";
 
 export type ResultNomineeRow = {
   id: string;
@@ -130,4 +132,28 @@ export function toCsv(results: Results, toUrl: (path: string) => string): string
     }
   }
   return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
+// What guests see once results are published: per category, nominees with at least one vote
+// in rank order (ties share a rank), then everyone else as "also nominated" by label. Never
+// vote counts; hidden nominees are left out entirely.
+export function buildGuestResults(results: Results, toUrl: (path: string) => string): { categories: GuestCategoryResult[] } {
+  const guest = (e: ResultEntry): GuestResultNominee => ({
+    id: e.id,
+    personName: e.personName,
+    costumeName: e.costumeName,
+    photoUrl: toUrl(e.photoPath),
+    thumbUrl: toUrl(thumbPath(e.photoPath)),
+  });
+  return {
+    categories: results.categories.map((c) => {
+      const visible = c.nominees.filter((e) => !e.hidden);
+      return {
+        category: c.category,
+        label: c.label,
+        ranked: visible.filter((e) => e.votes > 0).map((e) => ({ ...guest(e), rank: e.rank! })),
+        alsoNominated: visible.filter((e) => e.votes === 0).sort((a, b) => a.label.localeCompare(b.label)).map(guest),
+      };
+    }),
+  };
 }

@@ -57,9 +57,19 @@ export async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Pr
   return data as T;
 }
 
+// Also list guest/ and host/ so unused host uploads (not in photo_uploads) are removed. reset_all
+// only returns paths known to the tables.
+async function listPrefix(prefix: string): Promise<string[]> {
+  const { data, error } = await admin.storage.from(BUCKET).list(prefix, { limit: 1000 });
+  if (error) throw new Error(`list ${prefix}: ${error.message}`);
+  return (data ?? []).filter((f) => f.name.endsWith(".jpg")).map((f) => `${prefix}/${f.name}`);
+}
+
 export async function resetDb(): Promise<void> {
   const paths = await rpc<string[]>("reset_all");
-  if (paths.length > 0) await admin.storage.from(BUCKET).remove(paths);
+  const listed = (await Promise.all([listPrefix("guest"), listPrefix("host")])).flat();
+  const all = [...new Set([...paths.flatMap((p) => [p, p.replace(/\.jpg$/, ".thumb.jpg")]), ...listed])];
+  for (let i = 0; i < all.length; i += 100) await admin.storage.from(BUCKET).remove(all.slice(i, i + 100));
 }
 
 export async function openVoting(minutes = 30): Promise<void> {
@@ -202,6 +212,7 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
     { p_device: id(), p_categories: ["funniest"], p_person_name: "x", p_costume_name: null, p_photo_path: "x.jpg" },
   ],
   ["add_nominee_to_category", { p_device: id(), p_nominee: id(), p_category: "funniest" }],
+  ["add_nominee_to_categories", { p_device: id(), p_nominee: id(), p_categories: ["funniest"] }],
   [
     "edit_nominee",
     { p_device: id(), p_nominee: id(), p_person_name: "x", p_costume_name: null, p_photo_path: null, p_add_categories: [] },
@@ -209,6 +220,8 @@ export const FUNCTION_CALLS: Array<[string, Record<string, unknown>]> = [
   ["set_timer", { p_action: "start", p_minutes: 30 }],
   ["set_timer", { p_action: "start", p_closes_at: new Date(Date.now() + 3600000).toISOString() }],
   ["guest_state", {}],
+  ["set_results_published", { p_published: false }],
+  ["send_reveal_command", { p_command: "reveal" }],
   ["issue_upload", { p_device: id() }],
   [
     "admin_edit_nominee",
@@ -228,4 +241,6 @@ export const TABLES = [
   "nominee_edits",
   "rate_limits",
   "photo_uploads",
+  "slideshow_exclusions",
+  "reveal_remote",
 ];

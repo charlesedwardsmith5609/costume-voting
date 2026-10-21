@@ -7,8 +7,10 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:test": "bash scripts/dev-test.sh",
     "build": "next build",
     "start": "next start",
+    "start:test": "bash scripts/start-test.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

@@ -23,7 +23,7 @@ describe("POST /api/admin/reset", () => {
     expect(await countRows("nominees")).toBe(1);
   });
 
-  it("clears every table and the timer, and deletes current, replaced, and unused photos", async () => {
+  it("clears every table and the timer, and deletes current, replaced, and unused photos and thumbnails", async () => {
     await openVoting();
     const guest = newDevice();
     const n = await createNominee(guest, "funniest", "Al");
@@ -38,6 +38,9 @@ describe("POST /api/admin/reset", () => {
       p_add_categories: [],
     });
     const unused = await uploadPhoto(newDevice());
+    const thumb = original.replace(/\.jpg$/, ".thumb.jpg");
+    await admin.storage.from("nominee-photos").upload(thumb, new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { contentType: "image/jpeg" });
+    expect(await exists(thumb)).toBe(true);
     await rpc("cast_vote", { p_device: guest, p_category: "funniest", p_nominee: n });
 
     const { status, body } = await reset("RESET");
@@ -47,6 +50,6 @@ describe("POST /api/admin/reset", () => {
       expect(await countRows(table), table).toBe(0);
     }
     expect(await getSettings()).toEqual({ voting_opens_at: null, voting_closes_at: null });
-    for (const path of [original, replacement, unused]) expect(await exists(path), path).toBe(false);
+    for (const path of [original, replacement, unused, thumb]) expect(await exists(path), path).toBe(false);
   });
 });

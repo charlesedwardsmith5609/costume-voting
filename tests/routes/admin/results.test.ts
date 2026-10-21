@@ -38,6 +38,7 @@ describe("GET /api/admin/results", () => {
       ["Cy", 1, 2],
     ]);
     expect(funniest.nominees[0].photoUrl).toMatch(/\/storage\/v1\/object\/public\/nominee-photos\/guest\/.+\.jpg$/);
+    expect(funniest.nominees[0].thumbUrl).toBe(funniest.nominees[0].photoUrl.replace(/\.jpg$/, ".thumb.jpg"));
     const elaborate = body.categories.find((c: { category: string }) => c.category === "most_elaborate");
     expect(elaborate).toMatchObject({ totalVotes: 0, nominees: [] });
   });

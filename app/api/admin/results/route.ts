@@ -1,10 +1,10 @@
 import { requireAdmin } from "@/lib/server/admin";
 import { json, serverError } from "@/lib/server/http";
 import { buildResults, loadResultData } from "@/lib/server/results";
-import { db, photoUrl } from "@/lib/server/supabase";
+import { db, photoUrl, thumbPath } from "@/lib/server/supabase";
 
 // GET. Live results per category: non-hidden nominees ranked by votes (dense ranks), with photo
-// URLs, total votes per category, and distinct voting devices overall. Hidden nominees and
+// and thumbnail URLs, total votes per category, and distinct voting devices overall. Hidden nominees and
 // their votes are left out. Owner: votes, nominees, nominee_categories (read only).
 export async function GET(req: Request): Promise<Response> {
   const denied = requireAdmin(req);
@@ -21,7 +21,11 @@ export async function GET(req: Request): Promise<Response> {
         totalVotes: c.totalVotes,
         nominees: c.nominees
           .filter((n) => !n.hidden)
-          .map(({ photoPath, hidden: _hidden, ...n }) => ({ ...n, photoUrl: photoUrl(client, photoPath) })),
+          .map(({ photoPath, hidden: _hidden, ...n }) => ({
+            ...n,
+            photoUrl: photoUrl(client, photoPath),
+            thumbUrl: photoUrl(client, thumbPath(photoPath)),
+          })),
       })),
     });
   } catch (err) {

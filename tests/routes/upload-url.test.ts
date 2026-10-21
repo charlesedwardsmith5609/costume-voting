@@ -27,6 +27,17 @@ describe("POST /api/upload-url", () => {
     expect((await nom(me)).body.error).toBe("invalid_photo");
   });
 
+  it("issues a thumbnail upload URL next to the photo, and the thumbnail can never be a photo", async () => {
+    await openVoting();
+    const me = newDevice();
+    const { body } = await issue(me);
+    expect(body.thumbSignedUrl).toContain(body.path.replace(/\.jpg$/, ".thumb.jpg"));
+    await putSigned(body.thumbSignedUrl);
+    const thumb = body.path.replace(/\.jpg$/, ".thumb.jpg");
+    const res = await call(nominate(post("/api/nominate", { device: me, body: { categories: ["funniest"], photoPath: thumb } })));
+    expect(res.body.error).toBe("invalid_photo");
+  });
+
   it("is rejected before voting opens and after it closes", async () => {
     expect(await issue(newDevice())).toMatchObject({ status: 403, body: { error: "closed" } });
     await openVoting();

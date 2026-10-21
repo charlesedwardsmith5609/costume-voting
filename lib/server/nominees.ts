@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATEGORIES, type CategorySlug } from "@/lib/categories";
 import type { GuestNominee } from "@/lib/types";
-import { photoUrl } from "./supabase";
+import { photoUrl, thumbPath } from "./supabase";
 
 export const STRIP_SIZE = 12;
 export const MIN_QUERY_LENGTH = 2;
@@ -36,6 +36,24 @@ export async function loadNominees(client: SupabaseClient): Promise<NomineeRow[]
 const newestFirst = (a: [string, string], b: [string, string]) =>
   a[0] === b[0] ? a[1].localeCompare(b[1]) : a[0] < b[0] ? 1 : -1;
 
+function toGuest(r: NomineeRow, toUrl: (path: string) => string): GuestNominee {
+  const order = CATEGORIES.map((c) => c.slug);
+  return {
+    id: r.id,
+    personName: r.person_name,
+    costumeName: r.costume_name,
+    categories: r.nominee_categories.map((c) => c.category).sort((a, b) => order.indexOf(a) - order.indexOf(b)),
+    photoUrl: toUrl(r.photo_path),
+    thumbUrl: toUrl(thumbPath(r.photo_path)),
+  };
+}
+
+// Every non-hidden nominee, newest created first, for the "Nominate a costume" picker.
+export function buildAllNominees(rows: NomineeRow[], toUrl: (path: string) => string): { nominees: GuestNominee[] } {
+  const sorted = [...rows].sort((a, b) => newestFirst([a.created_at, a.id], [b.created_at, b.id]));
+  return { nominees: sorted.map((r) => toGuest(r, toUrl)) };
+}
+
 // Builds the category list (newest added to this category first), the two "Already
 // nominated?" strips, and, when queries are given, name matches in and outside the category.
 // Queries shorter than MIN_QUERY_LENGTH are ignored; photo-only nominees never match.
@@ -45,14 +63,7 @@ export function buildNomineeLists(
   queries: string[],
   toUrl: (path: string) => string,
 ): NomineeLists {
-  const order = CATEGORIES.map((c) => c.slug);
-  const toGuest = (r: NomineeRow): GuestNominee => ({
-    id: r.id,
-    personName: r.person_name,
-    costumeName: r.costume_name,
-    categories: r.nominee_categories.map((c) => c.category).sort((a, b) => order.indexOf(a) - order.indexOf(b)),
-    photoUrl: toUrl(r.photo_path),
-  });
+  const guest = (r: NomineeRow) => toGuest(r, toUrl);
   const addedAt = (r: NomineeRow) => r.nominee_categories.find((c) => c.category === category)?.added_at;
 
   const here = rows
@@ -63,19 +74,23 @@ export function buildNomineeLists(
     .sort((a, b) => newestFirst([a.created_at, a.id], [b.created_at, b.id]));
 
   const lists: NomineeLists = {
-    nominees: here.map(toGuest),
-    strips: { here: here.slice(0, STRIP_SIZE).map(toGuest), elsewhere: elsewhere.slice(0, STRIP_SIZE).map(toGuest) },
+    nominees: here.map(guest),
+    strips: { here: here.slice(0, STRIP_SIZE).map(guest), elsewhere: elsewhere.slice(0, STRIP_SIZE).map(guest) },
   };
 
   const terms = queries.map((q) => q.trim().toLowerCase()).filter((q) => q.length >= MIN_QUERY_LENGTH);
   if (terms.length > 0) {
     const matches = (r: NomineeRow) =>
       [r.person_name, r.costume_name].some((name) => name && terms.some((t) => name.toLowerCase().includes(t)));
-    lists.matches = { here: here.filter(matches).map(toGuest), elsewhere: elsewhere.filter(matches).map(toGuest) };
+    lists.matches = { here: here.filter(matches).map(guest), elsewhere: elsewhere.filter(matches).map(guest) };
   }
   return lists;
 }
 
 export function nomineeLists(client: SupabaseClient, rows: NomineeRow[], category: CategorySlug, queries: string[]) {
   return buildNomineeLists(rows, category, queries, (path) => photoUrl(client, path));
+}
+
+export function allNominees(client: SupabaseClient, rows: NomineeRow[]) {
+  return buildAllNominees(rows, (path) => photoUrl(client, path));
 }

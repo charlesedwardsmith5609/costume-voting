@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme inline {
+  --font-title: var(--font-creepster), cursive;
+}
+
 @theme {
   --color-night: #0d0a14;
   --color-pumpkin: #ff7a1a;
@@ -13,4 +17,88 @@ html {
 body {
   background: var(--color-night);
   color: #f5f3ff;
+}
+
+/* Winner reveal (host TV view). All motion is off under prefers-reduced-motion. */
+@keyframes rv-fly {
+  from { transform: translateX(-20vw) translateY(0) scale(var(--s, 1)); }
+  50% { transform: translateX(55vw) translateY(-6vh) scale(var(--s, 1)); }
+  to { transform: translateX(120vw) translateY(4vh) scale(var(--s, 1)); }
+}
+@keyframes rv-bob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-3vh) rotate(4deg); }
+}
+@keyframes rv-twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+@keyframes rv-glow {
+  0%, 100% { filter: drop-shadow(0 0 1.5vh #ff7a1a); }
+  50% { filter: drop-shadow(0 0 4vh #ff7a1a); }
+}
+@keyframes rv-sweep {
+  0%, 100% { transform: rotate(-16deg); }
+  50% { transform: rotate(16deg); }
+}
+@keyframes rv-swing {
+  0%, 100% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+}
+@keyframes rv-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-0.6vh, 0.3vh) rotate(-1.5deg); }
+  40% { transform: translate(0.6vh, -0.3vh) rotate(1.5deg); }
+  60% { transform: translate(-0.4vh, -0.4vh) rotate(-1deg); }
+  80% { transform: translate(0.4vh, 0.4vh) rotate(1deg); }
+}
+@keyframes rv-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@keyframes rv-fall {
+  from { transform: translateY(-12vh) rotate(0); opacity: 1; }
+  to { transform: translateY(112vh) rotate(540deg); opacity: 1; }
+}
+@keyframes rv-burst {
+  from { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+  to { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+}
+@keyframes rv-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.rv-fly { animation: rv-fly var(--d, 14s) linear var(--delay, 0s) infinite; }
+.rv-bob { animation: rv-bob var(--d, 5s) ease-in-out var(--delay, 0s) infinite; }
+.rv-twinkle { animation: rv-twinkle var(--d, 3s) ease-in-out var(--delay, 0s) infinite; }
+.rv-glow { animation: rv-glow 3s ease-in-out infinite; }
+.rv-sweep { animation: rv-sweep var(--d, 6s) ease-in-out infinite; transform-origin: 50% 0; }
+.rv-swing { animation: rv-swing 4s ease-in-out infinite; transform-origin: 50% 0; }
+.rv-shake { animation: rv-shake 0.18s linear infinite; }
+.rv-pulse { animation: rv-pulse 1.6s ease-in-out infinite; }
+.rv-fall { animation: rv-fall var(--d, 4s) linear var(--delay, 0s) both; }
+.rv-burst { animation: rv-burst 1.4s ease-out var(--delay, 0s) both; }
+.rv-pop { animation: rv-pop 0.6s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-fly, .rv-bob, .rv-twinkle, .rv-glow, .rv-sweep, .rv-swing, .rv-shake, .rv-pulse, .rv-fall, .rv-burst, .rv-pop {
+    animation: none;
+  }
+  .rv-fall, .rv-burst { display: none; }
+}
+
+/* Final slideshow */
+@keyframes rv-kenburns {
+  from { transform: scale(1); }
+  to { transform: scale(1.12); }
+}
+@keyframes rv-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.rv-kenburns { animation: rv-kenburns var(--d, 8s) ease-out both; }
+.rv-fade { animation: rv-fade 1s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .rv-kenburns, .rv-fade { animation: none; }
 }
