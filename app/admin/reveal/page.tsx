@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
+import { RevealSlideshow } from "@/components/admin/RevealSlideshow";
+import { RevealWinners } from "@/components/admin/RevealWinners";
 import { Celebration, RevealStage } from "@/components/admin/RevealStage";
 import { RevealScenery } from "@/components/admin/RevealScenery";
 import { SECONDARY } from "@/components/ui";
@@ -23,6 +25,7 @@ export default function AdminRevealPage() {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const [rolling, setRolling] = useState(false);
+  const [slideshow, setSlideshow] = useState(false);
   const audio = useRef<RevealAudio | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -48,6 +51,8 @@ export default function AdminRevealPage() {
   const current = categories?.[index];
   const winners = current ? winnersOf(current.nominees) : [];
   const isRevealed = revealed.has(index);
+  // One step past the last category: all the winners together.
+  const final = categories !== null && index === count;
 
   const reveal = useCallback(() => {
     if (!current || rolling || revealed.has(index)) return;
@@ -64,13 +69,20 @@ export default function AdminRevealPage() {
 
   const step = useCallback(
     (to: number) => {
-      if (!rolling) setIndex(Math.min(Math.max(to, 0), count - 1));
+      if (!rolling) setIndex(Math.min(Math.max(to, 0), count));
     },
     [rolling, count],
   );
 
   useEffect(() => {
-    if (!started) return;
+    if (final) audio.current?.celebrate();
+  }, [final]);
+
+  const startSlideshow = useCallback(() => setSlideshow(true), []);
+  const exitSlideshow = useCallback(() => setSlideshow(false), []);
+
+  useEffect(() => {
+    if (!started || slideshow) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowRight") step(index + 1);
       else if (e.key === "ArrowLeft") step(index - 1);
@@ -81,7 +93,7 @@ export default function AdminRevealPage() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [started, index, step, reveal]);
+  }, [started, slideshow, index, step, reveal]);
 
   function begin() {
     audio.current = createRevealAudio();
@@ -125,7 +137,12 @@ export default function AdminRevealPage() {
         </div>
       ) : (
         <>
-          <main className="relative grid min-h-0 flex-1 grid-rows-[auto_1fr] items-center gap-[2vh] px-[3vw] pt-[2vh] lg:grid-cols-[1fr_1.8fr] lg:grid-rows-1">
+          <main
+            className={`relative grid min-h-0 flex-1 items-center gap-[2vh] px-[3vw] pt-[2vh] ${
+              final ? "" : "grid-rows-[auto_1fr] lg:grid-cols-[1fr_1.8fr] lg:grid-rows-1"
+            }`}
+          >
+            {final && categories && <RevealWinners categories={categories} onStartSlideshow={startSlideshow} />}
             {current && (
               <div className="space-y-[3vh]">
                 <h2 className="font-title text-[8vh] leading-none text-white drop-shadow-[0_0_2vh_rgba(139,92,246,.9)]">
@@ -141,13 +158,16 @@ export default function AdminRevealPage() {
                 </p>
               </div>
             )}
-            <div className="relative h-full min-h-0">
-              {current && (
-                <RevealStage key={index} winners={winners} revealed={isRevealed} rolling={rolling} onReveal={reveal} />
-              )}
-            </div>
+            {!final && (
+              <div className="relative h-full min-h-0">
+                {current && (
+                  <RevealStage key={index} winners={winners} revealed={isRevealed} rolling={rolling} onReveal={reveal} />
+                )}
+              </div>
+            )}
           </main>
-          {isRevealed && winners.length > 0 && <Celebration key={index} />}
+          {(final || (isRevealed && winners.length > 0)) && <Celebration key={index} />}
+          {slideshow && <RevealSlideshow onExit={exitSlideshow} />}
           <footer className="relative grid grid-cols-[auto_1fr_1fr_auto] items-center gap-3 px-4 py-3 opacity-60 transition-opacity hover:opacity-100">
             <Link href="/admin/tools" className="inline-flex min-h-11 items-center px-2 text-violet-200">
               ← Exit
@@ -155,7 +175,7 @@ export default function AdminRevealPage() {
             <button type="button" disabled={index === 0 || rolling} onClick={() => step(index - 1)} className={SECONDARY}>
               ← Previous
             </button>
-            <button type="button" disabled={index >= count - 1 || rolling} onClick={() => step(index + 1)} className={SECONDARY}>
+            <button type="button" disabled={index >= count || rolling} onClick={() => step(index + 1)} className={SECONDARY}>
               Next →
             </button>
             <button type="button" onClick={toggleMute} aria-pressed={muted} className="min-h-11 px-2 text-2xl">

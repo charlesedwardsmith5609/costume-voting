@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { winnersOf } from "@/lib/reveal";
+import { shuffled, slideshowOrder, winnersOf } from "@/lib/reveal";
 import { firstAudibleSeconds } from "@/lib/revealSound";
 
 const n = (id: string, rank: number, votes: number) => ({ id, rank, votes });
@@ -29,5 +29,27 @@ describe("firstAudibleSeconds", () => {
   it("is 0 when the sound starts at once or never", () => {
     expect(firstAudibleSeconds(Float32Array.of(0.5, 0), 1000)).toBe(0);
     expect(firstAudibleSeconds(new Float32Array(100), 1000)).toBe(0);
+  });
+});
+
+describe("shuffled and slideshowOrder", () => {
+  const seq = (...values: number[]) => {
+    let i = 0;
+    return () => values[i++ % values.length];
+  };
+
+  it("returns every item once without changing the input", () => {
+    const input = [1, 2, 3, 4, 5];
+    const out = shuffled(input, seq(0.1, 0.9, 0.5, 0.3));
+    expect([...out].sort()).toEqual(input);
+    expect(input).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("does not start a new pass on the photo that ended the last one", () => {
+    const photos = [{ path: "a" }, { path: "b" }, { path: "c" }];
+    for (let s = 0; s < 20; s++) {
+      expect(slideshowOrder(photos, "a", seq(s / 20, 0.4, 0.7))[0].path).not.toBe("a");
+    }
+    expect(slideshowOrder([{ path: "a" }], "a")).toEqual([{ path: "a" }]);
   });
 });
