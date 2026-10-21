@@ -44,9 +44,9 @@ slideshow is done: migration 0006, `GET /api/admin/photos`, `POST /api/admin/sli
 Manual testing: `npm run dev:test` runs the dev server against the test project (see
 `scripts/dev-test.sh`); don't run the check at the same time, since it resets that project.
 
-Before deploy (M6): run `0002` through `0007` (`0002_guest_reads`, `0003_photo_uploads`,
+Before deploy (M6): run `0001` through `0007` (`0001_init`, `0002_guest_reads`, `0003_photo_uploads`,
 `0004_add_categories`, `0005_publish_results`, `0006_slideshow_exclusions`, `0007_reveal_remote`) on
-production. All of them are already on the test project. The sound files in `public/sounds/` are gitignored (license: not
+production, in order (production has none of them yet). All of them are already on the test project. The sound files in `public/sounds/` are gitignored (license: not
 for redistribution), so they must be copied into the deploy by hand; see `public/sounds/CREDITS.md`.
 
 ## Remaining tasks
