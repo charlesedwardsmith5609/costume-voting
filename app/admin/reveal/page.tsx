@@ -27,6 +27,8 @@ import { createRevealAudio, type RevealAudio } from "@/lib/revealSound";
 // the arrow keys step. Owner: votes, nominees, nominee_categories (read only).
 const REMOTE_POLL_MS = 800;
 const REMOTE_HEARTBEAT_MS = 5000;
+// The server accepts at most this many winner names in the published status (the phone preview).
+const MAX_PUBLISHED_WINNERS = 10;
 
 export default function AdminRevealPage() {
   const { expired } = useAdmin();
@@ -120,7 +122,10 @@ export default function AdminRevealPage() {
     if (c === "mute_toggle") return toggleMute();
     if (slideshow) return c === "exit_slideshow" ? exitSlideshow() : undefined;
     if (c === "reveal") reveal();
-    else if (c === "next") step(index + 1);
+    // A hidden category is never skipped by the remote (the phone only sends next once revealed).
+    else if (c === "next") {
+      if (final || isRevealed) step(index + 1);
+    }
     else if (c === "previous") step(index - 1);
     else if (c === "start_slideshow" && final) startSlideshow();
   };
@@ -146,7 +151,7 @@ export default function AdminRevealPage() {
     revealed: isRevealed,
     rolling,
     muted,
-    winners: winners.map(singleLine),
+    winners: winners.slice(0, MAX_PUBLISHED_WINNERS).map(singleLine),
   };
   const statusKey = JSON.stringify(status);
   useEffect(() => {

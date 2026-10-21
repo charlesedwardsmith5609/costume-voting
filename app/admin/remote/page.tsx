@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { ADMIN_PAGE } from "@/components/admin/ui";
 import { PRIMARY, SECONDARY } from "@/components/ui";
@@ -10,8 +10,9 @@ import { useOnVisible } from "@/lib/hooks";
 import { canGoBack, mainAction, type RevealCommand } from "@/lib/revealRemote";
 
 const POLL_MS = 1000;
-// After a tap, buttons wait this long so a double tap can't skip a step.
-const LOCK_MS = 1000;
+// After a tap, buttons stay locked until the TV reports a different status (so a slow poll can't
+// let a second tap act on a stale screen), or this long if it never does.
+const LOCK_MS = 4000;
 
 // Phone remote for the winner reveal on the TV (/admin/reveal): one big button for the next
 // step, plus Previous and Mute. Shows the current category and, before the reveal, who won.
@@ -19,7 +20,10 @@ const LOCK_MS = 1000;
 export default function AdminRemotePage() {
   const { expired } = useAdmin();
   const [remote, setRemote] = useState<RevealRemote | null>(null);
-  const [locked, setLocked] = useState(false);
+  // The status the phone saw when the last command was sent; locked until the TV's differs.
+  const [lockedFrom, setLockedFrom] = useState<string | null>(null);
+  const unlock = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const locked = lockedFrom !== null;
   const [error, setError] = useState<string | null>(null);
 
   const fail = useCallback(
@@ -35,14 +39,16 @@ export default function AdminRemotePage() {
     fetchRevealRemote()
       .then((r) => {
         setRemote(r);
+        setLockedFrom((from) => (from !== null && JSON.stringify(r.state) !== from ? null : from));
         setError(null);
       })
       .catch(fail);
   }, POLL_MS);
 
   async function send(command: RevealCommand) {
-    setLocked(true);
-    setTimeout(() => setLocked(false), LOCK_MS);
+    setLockedFrom(JSON.stringify(remote?.state ?? null));
+    clearTimeout(unlock.current);
+    unlock.current = setTimeout(() => setLockedFrom(null), LOCK_MS);
     try {
       await sendRevealCommand(command);
     } catch (err) {
