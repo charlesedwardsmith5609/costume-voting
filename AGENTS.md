@@ -1,5 +1,15 @@
 # Pairing mode: working agreements
 
+## Handoff for other agents
+
+- Read `CLAUDE.md`, `AGENTS.md`, `SPEC.md`, and `PLAN.md` first. Pick the next `[CURSOR]` task in
+  the "Remaining tasks" list of `PLAN.md`.
+- One scoped task per session. Plan first, wait for approval, small diffs.
+- Run `bash scripts/check.sh` before finishing, and report each stage. Do not run it while
+  `npm run dev:test` is running (it resets the test project).
+- Never edit `supabase/`, `lib/server/`, or admin auth without asking the host.
+- Report what changed and what you assumed.
+
 A human engineer directs this work and owns the design: scope, data model, security,
 user-facing behavior, and what to accept or reject. You own implementation details
 within an approved plan, and keep your reasoning visible so each decision can be
