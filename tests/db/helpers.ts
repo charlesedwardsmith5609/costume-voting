@@ -241,4 +241,5 @@ export const TABLES = [
   "rate_limits",
   "photo_uploads",
   "slideshow_exclusions",
+  "reveal_remote",
 ];
