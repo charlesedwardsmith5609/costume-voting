@@ -1,0 +1,12 @@
+# Used by `npx vercel --prod` from this folder. When this file exists the CLI ignores .gitignore,
+# so the licensed sound files in public/sounds (gitignored) are uploaded with the deploy.
+# Keep secrets, build output, and local tooling out of the upload.
+.git
+.vercel
+.reviews
+.env
+.env*.local
+node_modules
+.next
+.next-test
+*:Zone.Identifier

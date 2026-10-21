@@ -19,3 +19,5 @@ next-env.d.ts
 # Audio files are licensed for use, not redistribution (see public/sounds/CREDITS.md)
 public/sounds/*.mp3
 *:Zone.Identifier
+.vercel
+.env*

@@ -48,10 +48,15 @@ Copy them into `public/sounds/` by hand for local runs and for each deploy. Sour
 
 ### Vercel deploy
 
-1. Import this GitHub repo into a Vercel project.
-2. Set the production environment variables listed above.
-3. Ensure the four sound files are present in `public/sounds/` for the deploy (they are not in git).
-4. Deploy. Point a short domain at the project when you have one.
+Deploy from this folder with the Vercel CLI, not by importing the GitHub repo. The sound files in
+`public/sounds/` are gitignored (license), so a deploy built from git would have no music or
+effects. `.vercelignore` makes the CLI upload them from your machine.
+
+1. Make sure `public/sounds/` has the four `.mp3` files (see above).
+2. `npx vercel link` once, to create or pick the Vercel project.
+3. In the Vercel project settings, set the production environment variables listed above.
+4. `npx vercel --prod` from the repo root. Run `bash scripts/check.sh` first.
+5. Point a short domain at the project when you have one.
 
 ## Commands
 
