@@ -10,7 +10,7 @@ It must be ready and tested on real phones by Friday, October 23.
 
 1. **No sign-in for guests.** No accounts, no email, no app install. Scan and go.
 2. **Mobile first.** Designed for phones in one hand, in a dim room, on spotty Wi-Fi.
-3. **Votes are private.** Guests never see vote counts, rankings, or who voted for whom. Only the host sees results.
+3. **Votes are private.** Guests never see vote counts or who voted for whom. Only the host sees tallies. After the host publishes results, guests see each category's winners and the rank order, never counts.
 4. **Automatic tallying** per category, live on the admin page.
 5. **Voting window.** The host starts voting with a close time (for example 10:30 PM) or a duration. When it closes, voting, nominating, uploads, and guest edits all lock, enforced on the server, not just in the UI.
 6. **Fast nomination.** Adding a nominee takes under 30 seconds: take or pick a photo, optionally type names, choose one or more categories, submit.
@@ -113,7 +113,12 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
 - **Timer controls:** start by choosing a close time or a duration; the picker defaults to a close time of 10:00 PM on Saturday, October 24, 2026, in the host's local time; extend by 5 or 10 minutes; end now; and reopen. The close time must be in the future; there is no upper limit. The home banner shows the close time while voting is open.
 - **Live results:** per category, nominees ranked by vote count with photo thumbnails, auto-refreshing every few seconds (or Supabase Realtime). Show total votes per category and number of distinct voting devices.
 - **Publishing results:** after voting closes, the host publishes the results. Until then guests see "Votes are in! Stand by for the winners to be announced."; once published they see each category's winners (every tied winner) and the full rankings, never vote counts. Reopening voting unpublishes. Owner: `set_results_published`.
-- **Winner reveal view:** a full-screen view showing the winner of each category with their photo, one at a time, for announcing on a TV or the host's phone. Handle ties by showing all tied nominees.
+- **Winner reveal view** (`/admin/reveal`): full screen, laid out for a 16:9 TV and usable on a phone. Title "The Charlies' Halloween Party 2026 / Costume Contest Winners" across the top over an animated night scene (moon, bats, ghosts, pumpkins, spider).
+  - Starts with "Tap to start", which unlocks sound. One category at a time; each shows a "?" card until the host taps it (or presses Space or Enter), then a drumroll, a flip to the winner's photo and name, fireworks, and applause. Tied winners flip together under "It's a tie!"; a category with no votes shows "No votes in this category". Previous/Next and the arrow keys move between categories.
+  - Sound: looping background music that fades out and pauses for each drumroll (so it resumes where it left off) and returns after the reveal; a mute button. Files live in `public/sounds/` (see `CREDITS.md`) and are not in git; a missing file is skipped.
+  - After the last category, a final page: "Congratulations to our winners!" with every category's winner(s). A "Start slideshow" button starts the slideshow; after 5 minutes without a click it starts by itself.
+  - **Slideshow:** a full-screen, random, endless loop of photos (slow zoom, fade, and the nominee's name), reshuffled after each pass, until Exit or Escape. It includes every nominee's current photo (hidden nominees too), photos replaced by edits, and uploads no nominee used. A photo that fails to load is skipped. Results are loaded when the page opens.
+  - **Slideshow photos** (`/admin/slideshow`): the host sees every candidate photo with its source (Current, Hidden, Earlier photo, Unused) and can Remove it from, or Restore it to, the slideshow. Removal is by photo, so the nominee stays. Reset clears removals.
 - **Nominee moderation:**
   - Hide or delete a nominee. Hiding removes it from every category.
   - Edit names and photo at any time, including after voting closes.
@@ -125,7 +130,8 @@ Anyone can edit any nominee (no ownership checks; it's a party among friends).
   - Hidden nominees are listed at the bottom of each category with an empty rank and hidden = true, so they never look like they placed. Their votes column shows the votes they actually have.
   - Guest-typed text that starts with `=`, `+`, `-`, or `@` gets a leading `'`, so a spreadsheet never runs it as a formula. The file is UTF-8 with a byte order mark so Excel shows emoji correctly.
 - **Delete** removes a nominee with its categories, votes, and edit history. Its photos stay in Storage until Reset.
-- **QR code page:** shows a large, printable QR code for the guest URL with the text "Scan to vote for best costume!" and the categories listed.
+- **QR code page:** shows a large, printable QR code for the guest URL (this site's address; shown in red if it is localhost) with the text "Scan to vote for best costume!" and the categories listed, with Print and Download PNG.
+- **Tools page** (`/admin/tools`): links to the winner reveal and slideshow photos, the CSV download, and Reset.
 - **Reset:** a guarded "clear all votes and nominees" action for testing, requiring the host to type RESET.
 
 ## Data model
@@ -182,7 +188,7 @@ create table nominee_edits (
 );
 ```
 
-`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. Later migrations add and change functions. The migrations are the source of truth.
+`settings` and `rate_limits` are as in `supabase/migrations/0001_init.sql`, and `photo_uploads` (which device each guest upload path was issued to) is in `0003_photo_uploads.sql`. `slideshow_exclusions` (photo paths the host removed from the slideshow; cleared by `reset_all`) is in `0006_slideshow_exclusions.sql`. Later migrations add and change functions. The migrations are the source of truth.
 
 - Enable Row Level Security on all tables with **no policies for the anon role**, so the browser cannot read or write tables directly. All access goes through server routes using the service role.
 - The Supabase projects have "Automatically expose new tables" disabled. The migration grants `service_role` select, insert, update, and delete on every table, usage on the `nominee_edits` sequence, and execute on every function. `anon` and `authenticated` get nothing.
@@ -206,7 +212,7 @@ create table nominee_edits (
 ## Non-goals
 
 - No user accounts, social login, comments, or sharing.
-- No public leaderboard.
+- No public leaderboard: rankings are visible to guests only after the host publishes, and never with counts.
 - No native app.
 
 ## Acceptance tests
@@ -235,6 +241,12 @@ Write automated tests where practical (server route tests for voting and timer r
 20. A photo-only nominee shows "Mystery guest 👻" with a "Is this you? Or know who it is? Add details" link; a nominee with both names shows two lines on the card and "Sam as The Mad Hatter" in single-line contexts.
 21. The CSV export has one row per nominee per category with the listed columns; tied nominees share a rank (1, 1, 2), and hidden nominees are at the bottom with an empty rank.
 22. From the home screen, "Nominate a costume" lists every non-hidden nominee with its categories, and the search box filters it by name. Tapping one and checking two more categories adds both (one entry in the edit history) with no photo or names, and it appears in each. "Not here? Add someone new" requires at least one category and adds a new nominee. Both paths return to the home screen. Manual check on each test phone.
+23. After voting closes the host publishes results: guests see "Votes are in! Stand by for the winners to be announced." until then, and the winners and rank order (never counts) after. Reopening voting unpublishes.
+24. The QR page shows a scannable code for the site address, the heading, and the four categories; the address is red on localhost; Print hides the admin nav.
+25. Reset needs RESET typed exactly, and clears votes, nominees, edits, photos, the timer, and slideshow removals.
+26. In the reveal, each category stays hidden until tapped; a tie flips every tied winner; a category with no votes says so; the music pauses during the drumroll and resumes where it stopped; mute silences everything.
+27. After the last category the final page shows every winner and starts the slideshow on the button or after 5 minutes.
+28. The slideshow shows hidden, replaced, and unused photos but never one the host removed; removing and restoring on `/admin/slideshow` takes effect the next time the slideshow starts; admin photo routes return unauthorized without the session cookie.
 
 ## Deliverables
 
