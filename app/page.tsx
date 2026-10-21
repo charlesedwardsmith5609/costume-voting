@@ -30,7 +30,7 @@ export default function Home() {
           ?
         </Link>
       </div>
-      <h1 className="text-center font-title text-5xl leading-tight text-pumpkin">The Charlies Costume Contest 2026</h1>
+      <h1 className="text-center font-title text-5xl leading-tight text-pumpkin">The Charlies&apos; Costume Contest 2026</h1>
       <p className="mt-2 text-center text-xl">Vote for your favorite costumes!</p>
       {view.kind === "closed" && view.published && (
         <Link href="/results" className={`${PRIMARY} mt-6 min-h-16 w-full text-xl`}>
