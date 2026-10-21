@@ -41,6 +41,10 @@ export default function AdminToolsPage() {
           <Link href="/admin/reveal" className={`${PRIMARY} w-full`}>
             Open winner reveal
           </Link>
+          <p className="text-lg">On your phone, open the remote to run it from your hand.</p>
+          <Link href="/admin/remote" className={`${SECONDARY} w-full`}>
+            Open phone remote
+          </Link>
         </section>
 
         <section className="space-y-3">

@@ -8,7 +8,16 @@ import { Celebration, RevealStage } from "@/components/admin/RevealStage";
 import { RevealScenery } from "@/components/admin/RevealScenery";
 import { SECONDARY } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { adminErrorMessage, fetchAdminResults, type AdminCategoryResult } from "@/lib/adminApi";
+import {
+  adminErrorMessage,
+  fetchAdminResults,
+  fetchRevealRemote,
+  publishRevealState,
+  type AdminCategoryResult,
+} from "@/lib/adminApi";
+import { useOnVisible } from "@/lib/hooks";
+import type { RevealCommand, RevealState } from "@/lib/revealRemote";
+import { singleLine } from "@/lib/nomineeLabel";
 import { winnersOf } from "@/lib/reveal";
 import { createRevealAudio, type RevealAudio } from "@/lib/revealSound";
 
@@ -16,6 +25,9 @@ import { createRevealAudio, type RevealAudio } from "@/lib/revealSound";
 // hidden behind a "?" card until tapped. Tied winners flip together. Winners are loaded when the
 // page opens (reload for fresh tallies). The first tap unlocks sound. Space/Enter reveal and
 // the arrow keys step. Owner: votes, nominees, nominee_categories (read only).
+const REMOTE_POLL_MS = 800;
+const REMOTE_HEARTBEAT_MS = 5000;
+
 export default function AdminRevealPage() {
   const { expired } = useAdmin();
   const [categories, setCategories] = useState<AdminCategoryResult[] | null>(null);
@@ -98,6 +110,52 @@ export default function AdminRevealPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [started, slideshow, index, step, reveal]);
+
+  // Phone remote. Commands are polled; each new one runs through the same handlers as a tap. The
+  // counter at load is the baseline, so a command sent before this page opened never runs.
+  const lastSeq = useRef<number | null>(null);
+  const run = useRef<(c: RevealCommand) => void>(() => {});
+  run.current = (c) => {
+    if (!started) return;
+    if (c === "mute_toggle") return toggleMute();
+    if (slideshow) return c === "exit_slideshow" ? exitSlideshow() : undefined;
+    if (c === "reveal") reveal();
+    else if (c === "next") step(index + 1);
+    else if (c === "previous") step(index - 1);
+    else if (c === "start_slideshow" && final) startSlideshow();
+  };
+  useOnVisible(() => {
+    fetchRevealRemote()
+      .then((r) => {
+        if (lastSeq.current === null) lastSeq.current = r.seq;
+        else if (r.seq > lastSeq.current) {
+          lastSeq.current = r.seq;
+          if (r.command) run.current(r.command);
+        }
+      })
+      .catch(() => {});
+  }, REMOTE_POLL_MS);
+
+  // Publishes what the TV shows, whenever it changes and every few seconds as a heartbeat.
+  const published = useRef<RevealState | null>(null);
+  const status: RevealState | null = categories && {
+    step: !started ? "start" : slideshow ? "slideshow" : final ? "winners" : "category",
+    index,
+    count,
+    label: current?.label ?? null,
+    revealed: isRevealed,
+    rolling,
+    muted,
+    winners: winners.map(singleLine),
+  };
+  const statusKey = JSON.stringify(status);
+  useEffect(() => {
+    published.current = status;
+    if (status) publishRevealState(status).catch(() => {});
+  }, [statusKey]);
+  useOnVisible(() => {
+    if (published.current) publishRevealState(published.current).catch(() => {});
+  }, REMOTE_HEARTBEAT_MS);
 
   function begin() {
     audio.current = createRevealAudio();

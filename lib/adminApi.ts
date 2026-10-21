@@ -4,6 +4,7 @@
 import { ApiError, type IssuedUpload, type NameFields } from "./api";
 import type { CategorySlug } from "./categories";
 import type { NomineeEdit } from "./editHistory";
+import type { RevealCommand, RevealState } from "./revealRemote";
 
 export async function adminRequest<T>(path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -124,3 +125,10 @@ export type SlideshowPhoto = {
 export const fetchSlideshowPhotos = () => adminRequest<{ photos: SlideshowPhoto[] }>("/api/admin/photos");
 export const setSlideshowExcluded = (photoPath: string, excluded: boolean) =>
   adminRequest("/api/admin/slideshow-exclude", { photoPath, excluded });
+
+// Phone remote for the winner reveal (/api/admin/reveal-remote, /api/admin/reveal-state).
+export type RevealRemote = { seq: number; command: RevealCommand | null; state: RevealState | null; tvConnected: boolean };
+export const fetchRevealRemote = () => adminRequest<RevealRemote>("/api/admin/reveal-remote");
+export const sendRevealCommand = (command: RevealCommand) =>
+  adminRequest<{ seq: number }>("/api/admin/reveal-remote", { command });
+export const publishRevealState = (state: RevealState) => adminRequest("/api/admin/reveal-state", { state });
